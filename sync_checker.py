@@ -333,7 +333,7 @@ def sync_once() -> bool:
     # — Persist metadata & regenerate index if something changed
     if changed:
         save_metadata(meta)
-        generate_index(meta)
+        # generate_index(meta)
     else:
         logger.info("No changes detected")
 

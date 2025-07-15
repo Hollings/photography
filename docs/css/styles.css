@@ -1,21 +1,30 @@
-/* Core layout */
-body { font-family: system-ui, sans-serif; margin: 2rem; }
-h1   { margin-bottom: 1.5rem; text-align:center; }
+/* Base layout */
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;                       /* flush to window edges */
+}
 
-/* Gallery */
+h1 {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+/* Gallery container */
 .gallery {
   display: flex;
-  flex-direction: column;   /* single-column layout */
+  flex-direction: column;          /* single‑column layout */
   gap: 2rem;
+  width: 100%;                     /* span the full viewport width */
 }
 
 /* Individual photo block */
-.photo a { display: block; }      /* make image link fill width */
+.photo a { display: block; }        /* make image link fill width */
 .photo img {
-  width: 100%;                    /* full-width images */
+  display: block;                  /* remove inline‑image whitespace */
+  width: 100%;                     /* full width of the viewport */
   height: auto;
-  max-height: 100vh;              /* never taller than the viewport */
-  object-fit: contain;            /* preserve aspect ratio within bounds */
+  max-height: 100vh;               /* never taller than the viewport */
+  object-fit: contain;             /* preserve aspect ratio within bounds */
   border-radius: 8px;
 }
 
