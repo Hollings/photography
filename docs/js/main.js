@@ -10,6 +10,11 @@ fetch("photos.json")
   .then(r => r.json())
   .then(data => {
     photos = Array.isArray(data) ? data : Object.values(data);
+
+    // ── Sort by rating (highest first), fallback to original order ──
+    photos.sort((a, b) => (parseInt(b.rating ?? 0, 10) || 0) -
+                          (parseInt(a.rating ?? 0, 10) || 0));
+
     loadNextBatch();                       // initial render
     setupObserver();                       // start observing for lazy loading
   })
@@ -35,16 +40,22 @@ function createPhotoBlock(p) {
   const block = document.createElement("div");
   block.className = "photo";
 
+  // choose the most appropriate image size for inline browsing
+  const inlineSrc =
+    p.small_url ||                // preferred: lightweight “small” variant
+    p.thumbnail_url ||            // fallback: tiny thumbnail
+    p.url;                        // ultimate fallback: original file
+
   // image element
   const img = document.createElement("img");
-  img.src      = p.url;                    // initial src is fine; browser handles fetch when visible
+  img.src      = inlineSrc;
   img.alt      = p.title || p.name || "";
-  img.loading  = "lazy";                   // native lazy loading
+  img.loading  = "lazy";          // native lazy loading
   img.decoding = "async";
 
-  // wrap image in a link that opens in a new tab
+  // wrap image in a link that opens the full‑resolution file in a new tab
   const link = document.createElement("a");
-  link.href   = p.url;
+  link.href   = p.url;            // always point to the original
   link.target = "_blank";
   link.rel    = "noopener";
   link.appendChild(img);
@@ -64,6 +75,7 @@ function buildCaption(p) {
   const shutter  = formatShutter(p.shutter_speed);
   const iso      = p.iso ? `ISO ${p.iso}` : "";
   const aperture = extractAperture(p.lens);
+  const rating   = p.rating != null ? `★ ${p.rating}` : "";
 
   const exposure = [shutter, aperture ? `f/${aperture}` : null, iso]
                     .filter(Boolean)
