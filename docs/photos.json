@@ -1,1 +1,15 @@
-{}
+{
+  "IMG_4688.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 4000,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_4688.jpg",
+    "sha1": "39087aff95bae1c1731d8b7724c705d279b3c12c",
+    "shutter_speed": "0.0025",
+    "size": 11880004,
+    "small_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/small/IMG_4688.jpg",
+    "thumbnail_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/thumb/IMG_4688.jpg",
+    "title": "Squirrel",
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_4688.jpg"
+  }
+}
