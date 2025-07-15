@@ -43,6 +43,17 @@ PHOTOS_DIR   = Path("./photos").resolve()
 META_FILE    = Path("docs/photos.json")
 INDEX_FILE   = Path("docs/index.html")
 
+# Derivative image directories relative to ``PHOTOS_DIR``. If these
+# directories contain files matching the main image's filename, they will
+# be uploaded alongside the main image and URLs will be stored in
+# ``photos.json`` under ``thumbnail_url``, ``small_url`` and
+# ``full_url`` respectively.
+VARIANT_DIRS = {
+    "thumbnail": PHOTOS_DIR / "thumb",
+    "small": PHOTOS_DIR / "small",
+    "full": PHOTOS_DIR / "full",
+}
+
 AWS_REGION   = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 S3_BUCKET    = os.getenv("S3_BUCKET")
 
@@ -73,6 +84,42 @@ def file_sha1(path: Path) -> str:
 
 def public_url(key: str) -> str:
     return f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
+
+
+def key_from_url(url: str) -> str:
+    """Extract the S3 key from a URL produced by :func:`public_url`."""
+    prefix = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/"
+    return url[len(prefix):] if url.startswith(prefix) else url
+
+
+def find_variant_file(base: Path, variant: str) -> Path | None:
+    """Return the path to a variant image if it exists."""
+    candidates = [
+        VARIANT_DIRS[variant] / base.name,
+        base.with_name(f"{base.stem}-{variant}{base.suffix}"),
+        base.with_name(f"{base.stem}_{variant}{base.suffix}"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
+
+
+def sync_variants(base: Path, name: str, meta_entry: dict, *, force: bool = False) -> None:
+    """Upload thumbnail/small/full variants if present and update metadata."""
+    for variant in VARIANT_DIRS:
+        path = find_variant_file(base, variant)
+        field = f"{variant}_url"
+        if path:
+            key = path.relative_to(PHOTOS_DIR).as_posix()
+            url = public_url(key)
+            if force or meta_entry.get(field) != url:
+                upload_file(path, key)
+                meta_entry[field] = url
+        else:
+            if field in meta_entry:
+                delete_file(key_from_url(meta_entry[field]))
+                del meta_entry[field]
 
 
 def load_metadata() -> dict:
@@ -284,6 +331,7 @@ def sync_once() -> bool:
             "size": entry["path"].stat().st_size,
             **entry["exif"],
         }
+        sync_variants(entry["path"], name, meta[name], force=True)
         logger.info("Added %s", name)
         changed = True
 
@@ -315,7 +363,10 @@ def sync_once() -> bool:
             upload_file(entry["path"], name)
             meta_entry["sha1"] = entry["sha1"]
             meta_entry["size"] = entry["path"].stat().st_size
+            sync_variants(entry["path"], name, meta_entry, force=True)
             logger.info("Updated content of %s", name)
+        else:
+            sync_variants(entry["path"], name, meta_entry)
 
         if exif_changed and not sha_changed:
             logger.info("Updated metadata for %s", name)
@@ -325,7 +376,12 @@ def sync_once() -> bool:
 
     # — Remove deleted files
     for name in removed:
+        meta_entry = meta[name]
         delete_file(name)
+        for variant in VARIANT_DIRS:
+            url_field = f"{variant}_url"
+            if url_field in meta_entry:
+                delete_file(key_from_url(meta_entry[url_field]))
         del meta[name]
         logger.info("Removed %s", name)
         changed = True
