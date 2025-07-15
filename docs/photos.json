@@ -1,4 +1,554 @@
 {
+  "084A2963-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 12800,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "084A2963-Enhanced-NR.jpg",
+    "sha1": "bf216fa66aa94ac35cb3abc6ebd958ec9d93b12f",
+    "shutter_speed": "0.00625",
+    "size": 45446377,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A2963-Enhanced-NR.jpg"
+  },
+  "084A3124.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 640,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "084A3124.jpg",
+    "sha1": "8a6621664e2b67b4490a06ff83000a8939eecef8",
+    "shutter_speed": "0.00125",
+    "size": 27212161,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3124.jpg"
+  },
+  "084A3247.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 250,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "084A3247.jpg",
+    "sha1": "28bdcbcfc5b21d62007c77bc73d8d982f99b067b",
+    "shutter_speed": "0.00125",
+    "size": 13022892,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3247.jpg"
+  },
+  "084A3574.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 100,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "084A3574.jpg",
+    "sha1": "4be7a63cb5409825c54023029e0aa411f74c2f7b",
+    "shutter_speed": "0.0025",
+    "size": 24535767,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3574.jpg"
+  },
+  "084A3593.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 100,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "084A3593.jpg",
+    "sha1": "44941e92edc754cbe001597147b88dc53b5494dd",
+    "shutter_speed": "0.0025",
+    "size": 25167332,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3593.jpg"
+  },
+  "084A3616.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 500,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "084A3616.jpg",
+    "sha1": "482fc6bc5493feb7705afe709df8def63eedbbc7",
+    "shutter_speed": "0.00125",
+    "size": 7610898,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3616.jpg"
+  },
+  "084A3890.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 12800,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "084A3890.jpg",
+    "sha1": "b324318456f970a73526129812571a16ed282971",
+    "shutter_speed": "0.004",
+    "size": 24081862,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3890.jpg"
+  },
+  "IMGL0383-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 2000,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL0383-Enhanced-NR.jpg",
+    "sha1": "f0733ca0c9cda57a6cc3dc362156ad1c4969ff60",
+    "shutter_speed": "0.003125",
+    "size": 7936266,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL0383-Enhanced-NR.jpg"
+  },
+  "IMGL0647-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 12800,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL0647-Enhanced-NR.jpg",
+    "sha1": "d6f268e07a9b01c45ab1b1b10234cccaa985ac9c",
+    "shutter_speed": "0.0005",
+    "size": 18738516,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL0647-Enhanced-NR.jpg"
+  },
+  "IMGL1988.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 5000,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL1988.jpg",
+    "sha1": "00891d87333a6b10773d62df592aa2f1ddcda084",
+    "shutter_speed": "0.0005",
+    "size": 3111184,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL1988.jpg"
+  },
+  "IMGL2377-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 4000,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL2377-Enhanced-NR.jpg",
+    "sha1": "ea103e375a4457d2101de1eb48620df146c61c8b",
+    "shutter_speed": "0.002",
+    "size": 1892866,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL2377-Enhanced-NR.jpg"
+  },
+  "IMGL2718.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 4000,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL2718.jpg",
+    "sha1": "83c889175a60016db7a8c7522c43aa3af2fc78a4",
+    "shutter_speed": "0.002",
+    "size": 12145651,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL2718.jpg"
+  },
+  "IMGL3718.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 500,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL3718.jpg",
+    "sha1": "e5bcbe8a6850fa774d76a864e8543739d77ec1dc",
+    "shutter_speed": "0.0003125",
+    "size": 1368100,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL3718.jpg"
+  },
+  "IMGL3910.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 2000,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL3910.jpg",
+    "sha1": "48d73d9482d8e681f63a1c30d233448f60b594e9",
+    "shutter_speed": "0.0003125",
+    "size": 6912640,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL3910.jpg"
+  },
+  "IMGL4865.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 4000,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL4865.jpg",
+    "sha1": "c6281617f63e0f759bfc21c9ed175923f5f394ba",
+    "shutter_speed": "0.0005",
+    "size": 42927574,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL4865.jpg"
+  },
+  "IMGL4965-1.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 320,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL4965-1.jpg",
+    "sha1": "be9500666f8cac2a89caa2b11d18f45d0ec81ae6",
+    "shutter_speed": "0.003125",
+    "size": 20000844,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL4965-1.jpg"
+  },
+  "IMGL5031-1.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 2500,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL5031-1.jpg",
+    "sha1": "a74666c3adf735ba68edacef45b1593315bc18ac",
+    "shutter_speed": "0.0025",
+    "size": 19596643,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL5031-1.jpg"
+  },
+  "IMGL5048.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 1600,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL5048.jpg",
+    "sha1": "ac5b5c109d08457ad0e441aec3053b3c230d18ec",
+    "shutter_speed": "0.000625",
+    "size": 13238127,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL5048.jpg"
+  },
+  "IMGL5724.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 1600,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL5724.jpg",
+    "sha1": "f1d9629d46073e2df010ea20a671e6b547f1d457",
+    "shutter_speed": "0.002",
+    "size": 11029112,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL5724.jpg"
+  },
+  "IMGL5737.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 200,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL5737.jpg",
+    "sha1": "ac77733bbd75c8d1b67e113b5976454595ddc5b8",
+    "shutter_speed": "0.005",
+    "size": 26918689,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL5737.jpg"
+  },
+  "IMGL5805.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 320,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL5805.jpg",
+    "sha1": "b958dcf32284586635349c088d82a6f7bae72727",
+    "shutter_speed": "0.000625",
+    "size": 3305920,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL5805.jpg"
+  },
+  "IMGL6195.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 800,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL6195.jpg",
+    "sha1": "e8a2b20701ef2254e8b0a5ea70cc2d4364894ba8",
+    "shutter_speed": "0.000625",
+    "size": 2356653,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL6195.jpg"
+  },
+  "IMGL6289.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 250,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL6289.jpg",
+    "sha1": "377b99474948a492028507dbb80ecf11f2891749",
+    "shutter_speed": "0.002",
+    "size": 25715558,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL6289.jpg"
+  },
+  "IMGL6379.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 1250,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL6379.jpg",
+    "sha1": "bf55b76c6f46e72196baa0932cd1401429b04cc1",
+    "shutter_speed": "0.0004",
+    "size": 2862342,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL6379.jpg"
+  },
+  "IMGL6817.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 200,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL6817.jpg",
+    "sha1": "ca638f30565f0f7baf0235f62d361eefdab8583f",
+    "shutter_speed": "0.002",
+    "size": 2012574,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL6817.jpg"
+  },
+  "IMGL7072.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 200,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL7072.jpg",
+    "sha1": "d071897fe4065f4b5c08f6e3cf0e2d0c61215ccb",
+    "shutter_speed": "0.002",
+    "size": 6051234,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL7072.jpg"
+  },
+  "IMGL7913.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 320,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL7913.jpg",
+    "sha1": "32a0981811d361adfc23c10a82bcd3760b4e88cc",
+    "shutter_speed": "0.002",
+    "size": 9757268,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL7913.jpg"
+  },
+  "IMGL7986.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 1250,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL7986.jpg",
+    "sha1": "8794fe481f05bfef05f1760d9a9c34a71461430f",
+    "shutter_speed": "0.002",
+    "size": 7062688,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL7986.jpg"
+  },
+  "IMGL8322.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 100,
+    "lens": "RF24-105mm F4 L IS USM",
+    "name": "IMGL8322.jpg",
+    "sha1": "b19c9326c130168f80ee15663a659a5bd1a92d0c",
+    "shutter_speed": "0.001",
+    "size": 17171230,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL8322.jpg"
+  },
+  "IMGL8756.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 200,
+    "lens": "RF24-105mm F4 L IS USM",
+    "name": "IMGL8756.jpg",
+    "sha1": "9bfc3fbe7dbb1cdaa03a28b1fc1d92ab1328a1d9",
+    "shutter_speed": "0.0008",
+    "size": 16603299,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL8756.jpg"
+  },
+  "IMGL8824.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 800,
+    "lens": "RF24-105mm F4 L IS USM",
+    "name": "IMGL8824.jpg",
+    "sha1": "dc986adab4dff86b307c5306d514aab593f8eb71",
+    "shutter_speed": "0.0008",
+    "size": 24983544,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL8824.jpg"
+  },
+  "IMGL9063.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 250,
+    "lens": "RF24-105mm F4 L IS USM",
+    "name": "IMGL9063.jpg",
+    "sha1": "8e194b8acedc450ddb6f46feeed092be4d8a9367",
+    "shutter_speed": "0.01",
+    "size": 19959728,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL9063.jpg"
+  },
+  "IMGL9554-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 2500,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL9554-Enhanced-NR.jpg",
+    "sha1": "2b9400c85c8684fd93977a28db9aa8662fb8881e",
+    "shutter_speed": "0.002",
+    "size": 989848,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL9554-Enhanced-NR.jpg"
+  },
+  "IMGL9560.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 1600,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
+    "name": "IMGL9560.jpg",
+    "sha1": "eadff352241809ef8690f1ecc69122b296148c8f",
+    "shutter_speed": "0.0004",
+    "size": 18237361,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL9560.jpg"
+  },
+  "IMG_0013.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 640,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0013.jpg",
+    "sha1": "b25b6facefbdd0eb288495df98f31b8b614ba124",
+    "shutter_speed": "0.0025",
+    "size": 14086468,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0013.jpg"
+  },
+  "IMG_0031.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2500,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0031.jpg",
+    "sha1": "87f158d79c7ded0af85302238e5e7d2613ce3a33",
+    "shutter_speed": "0.00125",
+    "size": 13407724,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0031.jpg"
+  },
+  "IMG_0067.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 10000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0067.jpg",
+    "sha1": "43ed1d31f73b81b5dd9328f408aafe1ca9b23938",
+    "shutter_speed": "0.001",
+    "size": 27342769,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0067.jpg"
+  },
+  "IMG_0238.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 200,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_0238.jpg",
+    "sha1": "6695d11a184dc77d260f3bf6519335ece6b09e71",
+    "shutter_speed": "0.00125",
+    "size": 7946947,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0238.jpg"
+  },
+  "IMG_0443.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 1600,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0443.jpg",
+    "sha1": "506ee1e532c63be354ce568cfa1cdb91a6d91331",
+    "shutter_speed": "0.00125",
+    "size": 8528594,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0443.jpg"
+  },
+  "IMG_0449.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 1250,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0449.jpg",
+    "sha1": "1f7092b907e250758f322d4938037af8f6f30c30",
+    "shutter_speed": "0.00125",
+    "size": 1959756,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0449.jpg"
+  },
+  "IMG_0518.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 1000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0518.jpg",
+    "sha1": "d0edd7b3f8ea356d465c5821aac0ac2cc6c0c966",
+    "shutter_speed": "0.0015625",
+    "size": 16551748,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0518.jpg"
+  },
+  "IMG_0581.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 400,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0581.jpg",
+    "sha1": "1eae2a2b979e22b91aa82574498bf4fe393d55bf",
+    "shutter_speed": "0.003125",
+    "size": 3391954,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0581.jpg"
+  },
+  "IMG_1342-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 12800,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_1342-Enhanced-NR.jpg",
+    "sha1": "26b36907e87bfb5e0001daa7b2f75f90704667ec",
+    "shutter_speed": "0.00125",
+    "size": 16708893,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1342-Enhanced-NR.jpg"
+  },
+  "IMG_1406.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_1406.jpg",
+    "sha1": "03f0a7f39106680aabec70b9e9ca1221e78d6647",
+    "shutter_speed": "0.0025",
+    "size": 16245985,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1406.jpg"
+  },
+  "IMG_1568.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 640,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_1568.jpg",
+    "sha1": "f12628ca1a6dd5f6f66f1f9dace184a81348f768",
+    "shutter_speed": "0.001",
+    "size": 6726911,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1568.jpg"
+  },
+  "IMG_1631.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 32000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_1631.jpg",
+    "sha1": "0a68cbbee7e53d1049c91f39f26fe1251ba67796",
+    "shutter_speed": "0.001",
+    "size": 20827505,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1631.jpg"
+  },
+  "IMG_1701.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_1701.jpg",
+    "sha1": "7b2ac52fdbe9e020d922f2197f20d5a93f9efbcd",
+    "shutter_speed": "0.00125",
+    "size": 20590284,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1701.jpg"
+  },
+  "IMG_1804.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 6400,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_1804.jpg",
+    "sha1": "40363eef469211f247056406284ae72eb24ea12f",
+    "shutter_speed": "0.0025",
+    "size": 12925285,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1804.jpg"
+  },
+  "IMG_1825.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF16mm F2.8 STM",
+    "name": "IMG_1825.jpg",
+    "sha1": "437a4d72f02093f703b85ed14d899a7ec2d09ca6",
+    "shutter_speed": "0.0015625",
+    "size": 8742889,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1825.jpg"
+  },
+  "IMG_1918-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2500,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_1918-Enhanced-NR.jpg",
+    "sha1": "996336baeb3f82febff94e4facc32eefc8fcbdab",
+    "shutter_speed": "0.0025",
+    "size": 4683868,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1918-Enhanced-NR.jpg"
+  },
+  "IMG_1944-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 4000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_1944-Enhanced-NR.jpg",
+    "sha1": "b29ce15c93ab5ed9cc7d30207823b547cbe75844",
+    "shutter_speed": "0.0015625",
+    "size": 10034941,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1944-Enhanced-NR.jpg"
+  },
+  "IMG_1993.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_1993.jpg",
+    "sha1": "8b536a1742d071d5101e2c8c34a61f56173c6f2c",
+    "shutter_speed": "0.005",
+    "size": 5644919,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_1993.jpg"
+  },
+  "IMG_2627-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 5000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_2627-Enhanced-NR.jpg",
+    "sha1": "29634042a866e2d54efd0917ecea9f9c49312f5f",
+    "shutter_speed": "0.00125",
+    "size": 11399703,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_2627-Enhanced-NR.jpg"
+  },
+  "IMG_2720.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 800,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_2720.jpg",
+    "sha1": "07bc783e6d1c7671dddde326b7f0d212746f3010",
+    "shutter_speed": "0.000625",
+    "size": 7100298,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_2720.jpg"
+  },
+  "IMG_3068.jpg": {
+    "camera": "iPhone 15 Pro Max",
+    "iso": 100,
+    "lens": "iPhone 15 Pro Max back triple camera 6.765mm f/1.78",
+    "name": "IMG_3068.jpg",
+    "sha1": "08893cacb1d2acadda0ac9a4c7a48e6e2c7e1d99",
+    "shutter_speed": "8.333333333333333e-05",
+    "size": 15051663,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_3068.jpg"
+  },
   "IMG_3111-2.jpg": {
     "camera": "Canon EOS R8",
     "iso": 3200,
@@ -9,6 +559,48 @@
     "size": 3039230,
     "title": "Grasshoppers",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_3111-2.jpg"
+  },
+  "IMG_3111.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 3200,
+    "lens": "RF50mm F1.8 STM",
+    "name": "IMG_3111.jpg",
+    "sha1": "57d33a6a91e05f0e07465422c7cf859741bd3b57",
+    "shutter_speed": "0.003125",
+    "size": 3039230,
+    "title": "Grasshoppers",
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_3111.jpg"
+  },
+  "IMG_3144.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_3144.jpg",
+    "sha1": "c8b805448a3b2f7d28c32f5ca5a2210c07f49fc4",
+    "shutter_speed": "0.002",
+    "size": 10536822,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_3144.jpg"
+  },
+  "IMG_3159.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_3159.jpg",
+    "sha1": "52fedbce73ab8fa13ce6ab2ceb8271d6b4709724",
+    "shutter_speed": "0.002",
+    "size": 8112919,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_3159.jpg"
+  },
+  "IMG_4517-2.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 640,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_4517-2.jpg",
+    "sha1": "591699dfb8f6c579da232051b81fcfc213add1bc",
+    "shutter_speed": "0.0025",
+    "size": 12147485,
+    "title": "Orb Weaver",
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_4517-2.jpg"
   },
   "IMG_4517.jpg": {
     "camera": "Canon EOS R8",
@@ -21,6 +613,17 @@
     "title": "Orb Weaver",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_4517.jpg"
   },
+  "IMG_4688-2.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 4000,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_4688-2.jpg",
+    "sha1": "6349b91805633bcf886a6240e17ae1cc860d2ccf",
+    "shutter_speed": "0.0025",
+    "size": 11880012,
+    "title": "Squirrel",
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_4688-2.jpg"
+  },
   "IMG_4688.jpg": {
     "camera": "Canon EOS R8",
     "iso": 4000,
@@ -32,6 +635,46 @@
     "title": "Squirrel",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_4688.jpg"
   },
+  "IMG_4732.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 800,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_4732.jpg",
+    "sha1": "0bc38b33994fa14757a1c38b551c0fe78231900c",
+    "shutter_speed": "0.0025",
+    "size": 6305739,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_4732.jpg"
+  },
+  "IMG_5082.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 200,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_5082.jpg",
+    "sha1": "966626f970d849b464c1b5f2ce16a6ebe99f86bd",
+    "shutter_speed": "0.008",
+    "size": 8013013,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_5082.jpg"
+  },
+  "IMG_5398.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF50mm F1.8 STM",
+    "name": "IMG_5398.jpg",
+    "sha1": "3f9a285508a232a64744448675ba9a2ed6663c36",
+    "shutter_speed": "6.0",
+    "size": 4493025,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_5398.jpg"
+  },
+  "IMG_6002-2.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 500,
+    "lens": "RF100-400mm F5.6-8 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_6002-2.jpg",
+    "sha1": "2199c227c95dc015ad7f6f76d231e86a6149eea1",
+    "shutter_speed": "0.00125",
+    "size": 2033038,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_6002-2.jpg"
+  },
   "IMG_6002.jpg": {
     "camera": "Canon EOS R8",
     "iso": 500,
@@ -41,6 +684,67 @@
     "shutter_speed": "0.00125",
     "size": 2033113,
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_6002.jpg"
+  },
+  "IMG_6624.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2500,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_6624.jpg",
+    "sha1": "791bef3bf050174b4d6695b7e368d0909ed3ca53",
+    "shutter_speed": "0.00125",
+    "size": 3377653,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_6624.jpg"
+  },
+  "IMG_6827.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 6400,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_6827.jpg",
+    "sha1": "549a403d14779891700618fab582125afb993fab",
+    "shutter_speed": "0.001",
+    "size": 13599964,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_6827.jpg"
+  },
+  "IMG_7211.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_7211.jpg",
+    "sha1": "8585b9cbca509238d19c61d878e9d48bb51ec366",
+    "shutter_speed": "0.07692307692307693",
+    "size": 3119685,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7211.jpg"
+  },
+  "IMG_7306.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 6400,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_7306.jpg",
+    "sha1": "aaeb2462b6f6ee5d74cef49ac8bcde862b4bbe92",
+    "shutter_speed": "0.001",
+    "size": 14619968,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7306.jpg"
+  },
+  "IMG_7390.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 400,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_7390.jpg",
+    "sha1": "b9c3aa905e9588a2f679d6f4628f6b88144b951c",
+    "shutter_speed": "0.00125",
+    "size": 5709020,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7390.jpg"
+  },
+  "IMG_7393-2.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2000,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_7393-2.jpg",
+    "sha1": "53f573ec7209d65979cd1ab97f3f2029d19f5df6",
+    "shutter_speed": "0.001",
+    "size": 18136786,
+    "title": "Northern Flicker",
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7393-2.jpg"
   },
   "IMG_7393.jpg": {
     "camera": "Canon EOS R8",
@@ -53,6 +757,56 @@
     "title": "Northern Flicker",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7393.jpg"
   },
+  "IMG_7583.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 1000,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_7583.jpg",
+    "sha1": "c7e3ab53db4ba6779b46a3d07f4242028f0eef15",
+    "shutter_speed": "0.0025",
+    "size": 2665340,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7583.jpg"
+  },
+  "IMG_7824.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 640,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_7824.jpg",
+    "sha1": "be58621b41f887be4fd48f28e8c652311c1f249c",
+    "shutter_speed": "0.003125",
+    "size": 11119540,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7824.jpg"
+  },
+  "IMG_7881.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF50mm F1.8 STM",
+    "name": "IMG_7881.jpg",
+    "sha1": "cf11af9e19eaaf0497f38ddf928a566dbb9c284a",
+    "shutter_speed": "0.0015625",
+    "size": 2019455,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7881.jpg"
+  },
+  "IMG_7893.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2000,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_7893.jpg",
+    "sha1": "b398a452e07713421a8a7299b691cb308761598c",
+    "shutter_speed": "0.001",
+    "size": 13929656,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_7893.jpg"
+  },
+  "IMG_8514-2.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 10000,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_8514-2.jpg",
+    "sha1": "bf6b1fcca354d1e15d9133481673838ba2e5a56f",
+    "shutter_speed": "0.001",
+    "size": 23266848,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_8514-2.jpg"
+  },
   "IMG_8514.jpg": {
     "camera": "Canon EOS R8",
     "iso": 10000,
@@ -62,5 +816,195 @@
     "shutter_speed": "0.001",
     "size": 23266902,
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_8514.jpg"
+  },
+  "IMG_8517.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 800,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_8517.jpg",
+    "sha1": "c3b77f9675ce5c741c6346b18bfaa7128a430d46",
+    "shutter_speed": "0.00125",
+    "size": 3965782,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_8517.jpg"
+  },
+  "IMG_8547.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 4000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_8547.jpg",
+    "sha1": "ea703a37cfb59997e54d84a165ffe4003e0445db",
+    "shutter_speed": "0.0003125",
+    "size": 2800197,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_8547.jpg"
+  },
+  "IMG_8724.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 800,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_8724.jpg",
+    "sha1": "d35f49f65647c5b9d819a731391f7c09b93601d9",
+    "shutter_speed": "0.0005",
+    "size": 737295,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_8724.jpg"
+  },
+  "IMG_8744.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 12800,
+    "lens": "RF200-800mm F6.3-9 IS USM + EXTENDER RF1.4x",
+    "name": "IMG_8744.jpg",
+    "sha1": "30f0e4e898968be9abdb9712d4e2a7945d78bb39",
+    "shutter_speed": "0.001",
+    "size": 23640926,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_8744.jpg"
+  },
+  "IMG_9022.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 320,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_9022.jpg",
+    "sha1": "758465bbd98818628e996df6a25f47dcdf2520c8",
+    "shutter_speed": "0.005",
+    "size": 10001568,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9022.jpg"
+  },
+  "IMG_9188.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 20000,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_9188.jpg",
+    "sha1": "798d1f82456c33abebb6381eee2ae10b0c143f2d",
+    "shutter_speed": "0.003125",
+    "size": 14899379,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9188.jpg"
+  },
+  "IMG_9190.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 640,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9190.jpg",
+    "sha1": "4a4a0b45b5305607df4232ea81df4d9b1ece1340",
+    "shutter_speed": "0.000625",
+    "size": 14198871,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9190.jpg"
+  },
+  "IMG_9230.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 1600,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9230.jpg",
+    "sha1": "3c6755ea228e07378b3a0da1aed808a6e0b13ef9",
+    "shutter_speed": "0.0005",
+    "size": 8631074,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9230.jpg"
+  },
+  "IMG_9319.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2500,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_9319.jpg",
+    "sha1": "b93ad8a3a6b1a78a3e396330dd24f5d36b7b1a5e",
+    "shutter_speed": "0.0025",
+    "size": 12910447,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9319.jpg"
+  },
+  "IMG_9562.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 400,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_9562.jpg",
+    "sha1": "2a6a549c62badedd05067e2f18dc4e603bc7e50d",
+    "shutter_speed": "0.0025",
+    "size": 7192761,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9562.jpg"
+  },
+  "IMG_9574.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 125,
+    "lens": "RF100-400mm F5.6-8 IS USM",
+    "name": "IMG_9574.jpg",
+    "sha1": "1be1f2a56a7888409eb1d754f9793b3f41dc12a0",
+    "shutter_speed": "0.003125",
+    "size": 4915617,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9574.jpg"
+  },
+  "IMG_9633.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 500,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9633.jpg",
+    "sha1": "c37433d84fa7e33524912bf56d319b2dc93bbff1",
+    "shutter_speed": "0.003125",
+    "size": 266330,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9633.jpg"
+  },
+  "IMG_9706-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 6400,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9706-Enhanced-NR.jpg",
+    "sha1": "44321e38b76455cad24b20bbc3fec02d73ed3368",
+    "shutter_speed": "0.00125",
+    "size": 12391973,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9706-Enhanced-NR.jpg"
+  },
+  "IMG_9839.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9839.jpg",
+    "sha1": "02959cfdaf83bd5a0d93f9d1892134e2c8f043aa",
+    "shutter_speed": "0.00125",
+    "size": 17049801,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9839.jpg"
+  },
+  "IMG_9849.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2500,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9849.jpg",
+    "sha1": "a3c9196dd1c7115ed61a28da941cafd6a4d33a87",
+    "shutter_speed": "0.0005",
+    "size": 18810864,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9849.jpg"
+  },
+  "IMG_9905-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 65535,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9905-Enhanced-NR.jpg",
+    "sha1": "d4b6f02709740ca768d4224d20a8e043361e6e5f",
+    "shutter_speed": "0.00025",
+    "size": 23809594,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9905-Enhanced-NR.jpg"
+  },
+  "IMG_9924.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 2000,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_9924.jpg",
+    "sha1": "e1cfe8f536f65caa788e097668d6378b26fb7012",
+    "shutter_speed": "0.00125",
+    "size": 6770907,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9924.jpg"
+  },
+  "IMG_9946.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF16mm F2.8 STM",
+    "name": "IMG_9946.jpg",
+    "sha1": "09ddfdf0499141b82a861b26399dca5be605482b",
+    "shutter_speed": "0.003125",
+    "size": 13828310,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9946.jpg"
+  },
+  "IMG_9948.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF16mm F2.8 STM",
+    "name": "IMG_9948.jpg",
+    "sha1": "cb6a15c942820e53899ae2486cff26addd4b2d51",
+    "shutter_speed": "0.003125",
+    "size": 12092150,
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_9948.jpg"
   }
 }
