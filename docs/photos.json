@@ -1,11 +1,16 @@
 {
   "IMGL0383-Enhanced-NR.jpg": {
+    "camera": "Canon EOS R5m2",
+    "iso": 2000,
+    "lens": "RF100-500mm F4.5-7.1 L IS USM",
     "name": "IMGL0383-Enhanced-NR.jpg",
-    "rating": null,
+    "rating": 5,
     "sha1": "29cc67d309db51225fd976848b8fd904a6e41583",
+    "shutter_speed": "0.003125",
     "size": 7936422,
     "small_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/small/IMGL0383-Enhanced-NR.jpg",
     "thumbnail_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/thumb/IMGL0383-Enhanced-NR.jpg",
+    "title": "Swallow",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMGL0383-Enhanced-NR.jpg"
   }
 }
