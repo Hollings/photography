@@ -9,6 +9,7 @@
     "shutter_speed": "0.00125",
     "size": 27212139,
     "small_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/small/084A3124.jpg",
+    "sort": 9,
     "thumbnail_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/thumb/084A3124.jpg",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3124.jpg"
   },
@@ -22,6 +23,7 @@
     "shutter_speed": "0.00125",
     "size": 13022879,
     "small_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/small/084A3247.jpg",
+    "sort": 10,
     "thumbnail_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/thumb/084A3247.jpg",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3247.jpg"
   },
@@ -35,6 +37,7 @@
     "shutter_speed": "0.0025",
     "size": 25971379,
     "small_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/small/084A3593.jpg",
+    "sort": 11,
     "thumbnail_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/thumb/084A3593.jpg",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/084A3593.jpg"
   },
