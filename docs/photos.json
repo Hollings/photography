@@ -303,6 +303,19 @@
     "thumbnail_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/thumb/IMG_0067.jpg",
     "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0067.jpg"
   },
+  "IMG_0117.jpg": {
+    "camera": "Canon EOS R8",
+    "iso": 100,
+    "lens": "RF200-800mm F6.3-9 IS USM",
+    "name": "IMG_0117.jpg",
+    "rating": 1,
+    "sha1": "cf03f5ab904d4194ebf8bd807effc388a2ed23b4",
+    "shutter_speed": "0.004",
+    "size": 4687301,
+    "small_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/small/IMG_0117.jpg",
+    "thumbnail_url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/thumb/IMG_0117.jpg",
+    "url": "https://hollings-photography-site.s3.us-west-1.amazonaws.com/IMG_0117.jpg"
+  },
   "IMG_0443.jpg": {
     "camera": "Canon EOS R8",
     "iso": 1600,
