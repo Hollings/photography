@@ -27,7 +27,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 import boto3
-from PIL import Image, ImageOps, ExifTags      # Pillow ≥ 10 required
+from PIL import Image, ImageOps, ExifTags          # Pillow ≥ 10 required
 from xml.etree import ElementTree as ET
 
 load_dotenv()
@@ -55,8 +55,8 @@ VARIANT_DIRS = {
 
 # Target longest‑edge pixel sizes for automatically‑generated variants
 VARIANT_SIZES = {
-    "thumbnail": 400,    # ≤ 400 px
-    "small":     1600,   # ≤ 1600 px  (a good mid‑size for retina displays)
+    "thumbnail": 400,     # ≤ 400 px
+    "small":     1600,    # ≤ 1600 px  (a good mid‑size for retina displays)
     # “full” is *not* down‑sized – original file is used
 }
 
@@ -141,7 +141,7 @@ def ensure_variant_file(base: Path, variant: str) -> Path | None:
             img.save(out_path, **save_kwargs)
         logger.info("Generated %s variant for %s", variant, base.name)
         return out_path
-    except Exception as exc:      # noqa: BLE001
+    except Exception as exc:                      # noqa: BLE001
         logger.error("Variant generation failed for %s (%s): %s", base, variant, exc)
         return None
 
@@ -179,20 +179,6 @@ def save_metadata(meta: dict) -> None:
     META_FILE.write_text(json.dumps(meta, indent=2, sort_keys=True))
     logger.info("Metadata saved to %s", META_FILE)
 
-# ── Index generation (optional) ────────────────────────────────────────────
-def generate_index(meta: dict) -> None:
-    logger.info("Regenerating %s", INDEX_FILE)
-    lines = [
-        "<!doctype html><html><head>",
-        "<meta charset='utf-8'><title>Photo Gallery</title>",
-        "<style>body{font-family:sans-serif} img{max-width:250px;margin:4px}</style>",
-        "</head><body><h1>Photo Gallery</h1>",
-    ]
-    for entry in meta.values():
-        title_attr = f" title='{entry['title']}'" if entry.get("title") else ""
-        lines.append(f"<div><img src='{entry['thumbnail_url']}' alt='{entry['name']}'{title_attr}></div>")
-    lines.append("</body></html>")
-    INDEX_FILE.write_text("\n".join(lines))
 
 # ── Git helpers ────────────────────────────────────────────────────────────
 def git_cmd(*args: str) -> None:
@@ -241,97 +227,173 @@ def _rational_to_float(value) -> float | None:
     if isinstance(value, (int, float)):
         return float(value)
     return None
+# ── EXIF parsing helpers ───────────────────────────────────────────────────
+def _walk_xmp_dict(node: Any, exif: dict) -> None:
+    """
+    Recursively traverse an XMP dict (as returned by Pillow ≥ 10) and
+    pull out a **rating** (integer 0‑5) and **title** (string).
+
+    The structure can be deeply nested, e.g.:
+
+        {'xmpmeta': {'RDF': {'Description': {'Rating': '5',
+                                             'dc:title': {'Alt': {'li': 'My Title'}}}}}}
+
+    The traversal stops as soon as both fields have been found.
+    """
+    if not isinstance(node, (dict, list)):
+        return
+
+    if isinstance(node, dict):
+        for key, value in node.items():
+            k = key.lower()
+
+            # --- Rating (0‑5) ------------------------------------------------
+            if k.endswith("rating") and "rating" not in exif:
+                try:
+                    exif["rating"] = int(value)
+                except (TypeError, ValueError):
+                    pass
+
+            # --- Title ------------------------------------------------------
+            if k.endswith("title") and "title" not in exif:
+                # Various Lightroom / XMP flavours:
+                #  • {'title': 'My Title'}
+                #  • {'dc:title': {'Alt': {'li': 'My Title'}}}
+                #  • {'description': {'Alt': {'li': {...}}}}
+                if isinstance(value, str):
+                    exif["title"] = value.strip()
+                elif isinstance(value, dict):
+                    alt = value.get("Alt") or value.get("alt")
+                    if isinstance(alt, dict):
+                        li = alt.get("li") or alt.get("LI")
+                        if isinstance(li, str):
+                            exif["title"] = li.strip()
+                # Fall‑through for other nested cases
+
+            # Recurse until both fields found
+            if "rating" in exif and "title" in exif:
+                return
+            _walk_xmp_dict(value, exif)
+
+    elif isinstance(node, list):
+        for item in node:
+            if "rating" in exif and "title" in exif:
+                return
+            _walk_xmp_dict(item, exif)
+
+
+def _parse_xmp_xml(xml_bytes: bytes | str, exif: dict) -> None:
+    """Parse raw XMP XML (string or bytes) for rating & title."""
+    try:
+        root = ET.fromstring(xml_bytes)
+        ns = {
+            "dc":  "http://purl.org/dc/elements/1.1/",
+            "xmp": "http://ns.adobe.com/xap/1.0/",
+        }
+        rating_el = root.find(".//xmp:Rating", ns)
+        title_el  = root.find(".//dc:title/*", ns)
+
+        if rating_el is not None and rating_el.text and "rating" not in exif:
+            exif["rating"] = int(rating_el.text.strip())
+
+        if title_el is not None and title_el.text and "title" not in exif:
+            exif["title"] = title_el.text.strip()
+    except Exception:          # noqa: BLE001
+        pass  # Ignore any XMP parse errors
 
 
 def extract_exif(path: Path) -> dict:
-    """Return a dict with selected EXIF fields, including numeric `rating` if present."""
+    """
+    Return a dict with selected EXIF & XMP fields
+    (camera, lens, ISO, aperture, shutter_speed, focal_length, title, rating).
+    Works whether Pillow returns XMP as a dict (≥ 10) or raw XML/bytes.
+    """
     exif: dict[str, str | int | float] = {}
+
     try:
         with Image.open(path) as img:
-            raw = img._getexif() or {}
-            xmp = img.getxmp()
-        # — XMP title & rating —
-        if xmp:
-            root = ET.fromstring(xmp)
-            ns = {
-                "dc":  "http://purl.org/dc/elements/1.1/",
-                "xmp": "http://ns.adobe.com/xap/1.0/",
-            }
-            title_el  = root.find(".//dc:title/*", ns)
-            rating_el = root.find(".//xmp:Rating", ns)
-            if title_el is not None and title_el.text:
-                exif["title"] = title_el.text.strip()
-            if rating_el is not None and rating_el.text:
-                try:
-                    exif["rating"] = int(rating_el.text.strip())
-                except ValueError:
-                    pass
+            raw_exif = img._getexif() or {}
+            xmp_obj  = img.getxmp() or {}            # may be dict / str / bytes / {}
+            xmp_raw  = img.info.get("XML:com.adobe.xmp")  # fallback → bytes or None
+    except Exception as exc:                         # noqa: BLE001
+        logger.debug("EXIF extraction failed opening %s: %s", path, exc)
+        return exif
 
-        tag_map = {ExifTags.TAGS.get(k, k): v for k, v in raw.items()}
+    # ── XMP (dict form) ────────────────────────────────────────────────────
+    if isinstance(xmp_obj, dict) and xmp_obj:
+        _walk_xmp_dict(xmp_obj, exif)
 
-        model = tag_map.get("Model")
-        if model:
-            exif["camera"] = str(model).strip()
+    # ── XMP (raw XML) ──────────────────────────────────────────────────────
+    if ("rating" not in exif or "title" not in exif):
+        if isinstance(xmp_obj, (bytes, str)) and xmp_obj:
+            _parse_xmp_xml(xmp_obj, exif)
+        elif xmp_raw:
+            _parse_xmp_xml(xmp_raw, exif)
 
-        lens_model = tag_map.get("LensModel")
-        if lens_model:
-            exif["lens"] = str(lens_model).strip()
+    # ── Standard EXIF tags (unchanged from previous version) ───────────────
+    tag_map = {ExifTags.TAGS.get(k, k): v for k, v in raw_exif.items()}
 
-        iso_val = tag_map.get("ISOSpeedRatings") or tag_map.get("PhotographicSensitivity")
-        if iso_val:
-            iso = iso_val[0] if isinstance(iso_val, (list, tuple)) else iso_val
-            exif["iso"] = int(iso)
+    model = tag_map.get("Model")
+    if model:
+        exif["camera"] = str(model).strip()
 
-        fnum = tag_map.get("FNumber")
-        if fnum is not None:
-            f = _rational_to_float(fnum)
-            if f:
-                exif["aperture"] = f"f/{f:.1f}"
+    lens_model = tag_map.get("LensModel")
+    if lens_model:
+        exif["lens"] = str(lens_model).strip()
 
-        shutter = tag_map.get("ExposureTime")
-        if shutter is not None:
-            if isinstance(shutter, (tuple, list)) and len(shutter) == 2 and shutter[1]:
-                exif["shutter_speed"] = f"{shutter[0]}/{shutter[1]} s"
-            else:
-                exif["shutter_speed"] = str(shutter)
+    iso_val = tag_map.get("ISOSpeedRatings") or tag_map.get("PhotographicSensitivity")
+    if iso_val:
+        iso = iso_val[0] if isinstance(iso_val, (list, tuple)) else iso_val
+        exif["iso"] = int(iso)
 
-        focal = tag_map.get("FocalLength")
-        if focal is not None:
-            fl = _rational_to_float(focal)
-            if fl:
-                exif["focal_length"] = f"{fl:.0f} mm"
+    fnum = tag_map.get("FNumber")
+    if fnum is not None:
+        f = _rational_to_float(fnum)
+        if f:
+            exif["aperture"] = f"f/{f:.1f}"
 
-        title = (
-            tag_map.get("ImageDescription")
-            or tag_map.get("XPTitle")
-            or tag_map.get("Title")
-        )
-        if isinstance(title, bytes):
-            try:
-                title = title.decode("utf-16").rstrip("\x00")
-            except Exception:                       # noqa: BLE001
-                title = None
-        if title:
-            exif["title"] = str(title).strip()
+    shutter = tag_map.get("ExposureTime")
+    if shutter is not None:
+        if isinstance(shutter, (tuple, list)) and len(shutter) == 2 and shutter[1]:
+            exif["shutter_speed"] = f"{shutter[0]}/{shutter[1]} s"
+        else:
+            exif["shutter_speed"] = str(shutter)
 
-        # — Windows/Microsoft rating tags —
-        rating_tag = tag_map.get("Rating") or tag_map.get("RatingPercent")
-        if rating_tag is not None and "rating" not in exif:
-            try:
-                rating_val = int(
-                    rating_tag[0] if isinstance(rating_tag, (list, tuple)) else rating_tag
-                )
-                # RatingPercent is 0‑100; convert to 0‑5 scale for consistency.
-                if rating_val > 5:
-                    rating_val = round(rating_val / 20)
-                exif["rating"] = rating_val
-            except Exception:                       # noqa: BLE001
-                pass
+    focal = tag_map.get("FocalLength")
+    if focal is not None:
+        fl = _rational_to_float(focal)
+        if fl:
+            exif["focal_length"] = f"{fl:.0f} mm"
 
-    except Exception as exc:                       # noqa: BLE001
-        logger.debug("EXIF extraction failed for %s: %s", path, exc)
+    title = (
+        tag_map.get("ImageDescription")
+        or tag_map.get("XPTitle")
+        or tag_map.get("Title")
+    )
+    if isinstance(title, bytes):
+        try:
+            title = title.decode("utf-16").rstrip("\x00")
+        except Exception:                           # noqa: BLE001
+            title = None
+    if title and "title" not in exif:
+        exif["title"] = str(title).strip()
+
+    # ── Windows/Microsoft rating tags ──────────────────────────────────────
+    rating_tag = tag_map.get("Rating") or tag_map.get("RatingPercent")
+    if rating_tag is not None and "rating" not in exif:
+        try:
+            rating_val = int(
+                rating_tag[0] if isinstance(rating_tag, (list, tuple)) else rating_tag
+            )
+            # RatingPercent is 0‑100 → convert to 0‑5 scale
+            if rating_val > 5:
+                rating_val = round(rating_val / 20)
+            exif["rating"] = rating_val
+        except Exception:                           # noqa: BLE001
+            pass
 
     return exif
+
 
 # ── Main loop helpers ──────────────────────────────────────────────────────
 def scan_local_photos() -> dict[str, dict]:
@@ -369,12 +431,15 @@ def sync_once() -> bool:
         entry = local[name]
         upload_file(entry["path"], name)
         meta[name] = {
-            "name": name,
-            "url": public_url(name),
-            "sha1": entry["sha1"],
-            "size": entry["path"].stat().st_size,
-            **entry["exif"],
+            "name":  name,
+            "url":   public_url(name),
+            "sha1":  entry["sha1"],
+            "size":  entry["path"].stat().st_size,
+            **entry["exif"],            # includes `rating`
         }
+        # Ensure `rating` is always present (None when absent) so that the
+        # photos.json schema is stable and predictable.
+        meta[name].setdefault("rating", None)
         sync_variants(entry["path"], name, meta[name], force=True)
         logger.info("Added %s", name)
         changed = True
@@ -387,11 +452,15 @@ def sync_once() -> bool:
         sha_changed  = entry["sha1"] != meta_entry.get("sha1")
         exif_changed = False
 
+        # keep a copy so we can check removals later
+        original_keys = set(meta_entry)
+
         for k, v in entry["exif"].items():
             if meta_entry.get(k) != v:
                 meta_entry[k] = v
                 exif_changed = True
 
+        # Remove obsolete keys (including rating if it disappeared)
         obsolete_keys = {
             "camera", "lens", "iso", "aperture",
             "shutter_speed", "focal_length", "title", "rating",
@@ -399,6 +468,13 @@ def sync_once() -> bool:
         for k in obsolete_keys:
             if k in meta_entry:
                 del meta_entry[k]
+                exif_changed = True
+
+        # Guarantee that the JSON record contains a `rating` field even
+        # when no rating exists in the file.
+        if "rating" not in meta_entry:
+            meta_entry["rating"] = None
+            if "rating" not in original_keys:
                 exif_changed = True
 
         if sha_changed:

@@ -25,7 +25,6 @@ h1 {
   height: auto;
   max-height: 100vh;               /* never taller than the viewport */
   object-fit: contain;             /* preserve aspect ratio within bounds */
-  border-radius: 8px;
 }
 
 .caption {
