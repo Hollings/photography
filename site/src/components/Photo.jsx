@@ -4,7 +4,7 @@ import { formatShutter, extractAperture } from "../utils";
 export default function Photo({ photo }) {
   const {
     title, name, camera, lens, shutter_speed,
-    iso, rating, url, small_url, thumbnail_url,
+    iso, url, small_url, thumbnail_url,
   } = photo;
 
   const src      = small_url || thumbnail_url || url;
@@ -28,7 +28,7 @@ export default function Photo({ photo }) {
         <span className="meta">
           {camera}<br />
           {lens}<br />
-          {exposure}{rating != null && ` | ★ ${rating}`}
+          {exposure}
         </span>
       </div>
     </div>

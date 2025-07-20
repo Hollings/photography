@@ -1,13 +1,20 @@
+# site/Dockerfile
 # ---------- build stage ----------
 FROM node:20-alpine AS build
 
 WORKDIR /app
+
+# copy just package.json so Docker can cache 'npm install'
 COPY package.json ./
-COPY package-lock.json* yarn.lock* pnpm-lock.yaml* . 2>/dev/null || true
+
+# install deps (will read package-lock.json if you add it later)
 RUN npm install --foreground-scripts
 
+# now bring in the rest of your source
 COPY . .
-RUN npm run build                 # outputs to /app/dist
+
+# build into /app/dist
+RUN npm run build
 
 # ---------- production stage ----------
 FROM nginx:1.27-alpine

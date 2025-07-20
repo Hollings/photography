@@ -10,21 +10,16 @@ export default function App() {
   const next   = useRef(0);
   const sent   = useRef(null);
 
-  // Fetch & sort photos
+  // Fetch photos in the order provided by the API (sort_order → newest)
   useEffect(() => {
     fetch("/photos.json")
       .then(r => r.json())
-      .then(d => {
-        const arr = Array.isArray(d) ? d : Object.values(d);
-        arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-        setAll(arr);
-      })
+      .then(d => setAll(Array.isArray(d) ? d : Object.values(d)))
       .catch(console.error);
   }, []);
 
-  // Load helper
   const load = useCallback(() => {
-    if (next.current >= all.length) return;         // nothing left
+    if (next.current >= all.length) return;
     setShow(v => {
       const slice = all.slice(next.current, next.current + BATCH);
       next.current += slice.length;
@@ -32,18 +27,15 @@ export default function App() {
     });
   }, [all]);
 
-  // Infinite scroll
   useEffect(() => {
     if (!all.length) return;
-    load();                                         // first batch
+    load();
 
     const ob = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           load();
-          if (next.current >= all.length && sent.current) {
-            ob.disconnect();                       // stop once done
-          }
+          if (next.current >= all.length && sent.current) ob.disconnect();
         }
       },
       { rootMargin: "200px" }

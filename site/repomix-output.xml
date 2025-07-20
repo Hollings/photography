@@ -51,10 +51,13 @@ src/
   App.jsx
   index.css
   main.jsx
+  Management.jsx
   utils.js
 .gitignore
+Dockerfile
 eslint.config.js
 index.html
+nginx.conf
 package.json
 README.md
 vite.config.js
@@ -89,8 +92,10 @@ import React from "react";
 import { formatShutter, extractAperture } from "../utils";
 
 export default function Photo({ photo }) {
-  const { title, name, camera, lens, shutter_speed, iso, rating,
-          url, small_url, thumbnail_url } = photo;
+  const {
+    title, name, camera, lens, shutter_speed,
+    iso, rating, url, small_url, thumbnail_url,
+  } = photo;
 
   const src      = small_url || thumbnail_url || url;
   const shutter  = formatShutter(shutter_speed);
@@ -101,7 +106,12 @@ export default function Photo({ photo }) {
   return (
     <div className="photo">
       <a href={url} target="_blank" rel="noopener noreferrer">
-        <img src={src} alt={title || name || ""} loading="lazy" decoding="async" />
+        <img
+          src={src}
+          alt={title || name || "Photo"}
+          loading="lazy"
+          decoding="async"
+        />
       </a>
       <div className="caption">
         <span className="title">{title || name}</span><br />
@@ -124,11 +134,12 @@ import "./index.css";
 const BATCH = 10;
 
 export default function App() {
-  const [all, setAll]   = useState([]);
+  const [all,  setAll]  = useState([]);
   const [show, setShow] = useState([]);
-  const next = useRef(0);
-  const sent = useRef(null);
+  const next   = useRef(0);
+  const sent   = useRef(null);
 
+  // Fetch & sort photos
   useEffect(() => {
     fetch("/photos.json")
       .then(r => r.json())
@@ -140,7 +151,9 @@ export default function App() {
       .catch(console.error);
   }, []);
 
+  // Load helper
   const load = useCallback(() => {
+    if (next.current >= all.length) return;         // nothing left
     setShow(v => {
       const slice = all.slice(next.current, next.current + BATCH);
       next.current += slice.length;
@@ -148,14 +161,24 @@ export default function App() {
     });
   }, [all]);
 
+  // Infinite scroll
   useEffect(() => {
     if (!all.length) return;
-    load();                                    // first batch
+    load();                                         // first batch
+
     const ob = new IntersectionObserver(
-      ([e]) => e.isIntersecting && load(),
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          load();
+          if (next.current >= all.length && sent.current) {
+            ob.disconnect();                       // stop once done
+          }
+        }
+      },
       { rootMargin: "200px" }
     );
-    sent.current && ob.observe(sent.current);
+
+    if (sent.current) ob.observe(sent.current);
     return () => ob.disconnect();
   }, [all, load]);
 
@@ -185,21 +208,195 @@ h1   { margin: 1.5rem 0; text-align: center; }
 <file path="src/main.jsx">
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import App        from "./App";
+import Management from "./Management";
+
+const Root = window.location.pathname.startsWith("/manage") ? Management : App;
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode><App /></React.StrictMode>
+  <React.StrictMode><Root /></React.StrictMode>
 );
 </file>
 
+<file path="src/Management.jsx">
+import React, { useEffect, useState, useCallback } from "react";
+
+export default function Management() {
+  const [photos, setPhotos] = useState([]);
+  const [title, setTitle] = useState("");
+  const [rating, setRating] = useState("");
+  const [dragActive, setDragActive] = useState(false);
+
+  /* -------------------------------- helpers ------------------------------ */
+  const refresh = useCallback(() => {
+    fetch("/photos")
+      .then(r => r.json())
+      .then(setPhotos)
+      .catch(console.error);
+  }, []);
+
+  const deletePhoto = id => {
+    if (!confirm("Delete this photo?")) return;
+    fetch(`/photos/${id}`, { method: "DELETE" })
+      .then(() => setPhotos(p => p.filter(ph => ph.id !== id)))
+      .catch(console.error);
+  };
+
+  const uploadFiles = files => {
+    Array.from(files).forEach(file => {
+      const fd = new FormData();
+      fd.append("file", file);
+      if (title)  fd.append("title",  title);
+      if (rating) fd.append("rating", rating);
+      fetch("/photos", { method: "POST", body: fd })
+        .then(refresh)
+        .catch(console.error);
+    });
+  };
+
+  /* ------------------------------ drag ‘n’ drop -------------------------- */
+  const handleDrag = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
+  };
+
+  const handleDrop = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files);
+  };
+
+  const handleInputChange = e => {
+    if (e.target.files?.length) uploadFiles(e.target.files);
+    e.target.value = "";                       // reset so same files can be re‑selected
+  };
+
+  /* -------------------------------- first load --------------------------- */
+  useEffect(refresh, [refresh]);
+
+  /* -------------------------------- render ------------------------------- */
+  return (
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
+      <h1>Photo Management</h1>
+
+      {/* ----- bulk‑upload zone ------------------------------------------- */}
+      <section
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+        style={{
+          border: "2px dashed #aaa",
+          borderRadius: 8,
+          padding: "2rem",
+          textAlign: "center",
+          background: dragActive ? "#f6f8fa" : "transparent",
+          marginBottom: "2rem",
+          cursor: "pointer"
+        }}
+        onClick={() => document.getElementById("file-picker").click()}
+      >
+        <p style={{ margin: 0, fontSize: "1.1rem" }}>
+          Drag &amp; drop images here&nbsp;— or click to choose multiple
+        </p>
+        <input
+          id="file-picker"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleInputChange}
+          style={{ display: "none" }}
+        />
+        <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <input
+            type="text"
+            placeholder="Optional title (applied to each)"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="Rating"
+            value={rating}
+            onChange={e => setRating(e.target.value)}
+            style={{ width: 100 }}
+          />
+        </div>
+      </section>
+
+      {/* ----- list -------------------------------------------------------- */}
+      <h2>Existing Photos ({photos.length})</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "1rem" }}>
+        {photos.map(p => (
+          <div key={p.id} style={{ border: "1px solid #ddd", padding: "0.5rem" }}>
+            <img
+              src={p.thumbnail_url || p.small_url || p.original_url}
+              alt={p.title || p.name}
+              style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
+            />
+            <div style={{ marginTop: "0.5rem", fontSize: ".85rem", lineHeight: 1.3 }}>
+              <strong>{p.title || p.name || "—"}</strong><br />
+              ★ {p.rating ?? "—"}
+            </div>
+            <button onClick={() => deletePhoto(p.id)} style={{ marginTop: "0.5rem", width: "100%" }}>
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+</file>
+
 <file path="src/utils.js">
+// Format shutter speeds supplied as numbers *or* fractions, e.g. "1/250"
+
+/**
+ * Compute a SHA‑1 hex digest in **both** browsers and Node.
+ * @param {string|Uint8Array} input
+ * @returns {Promise<string>} 40‑char hex string
+ */
+export async function sha1Hex(input) {
+  const data = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+
+  if (globalThis.crypto?.subtle?.digest) {
+    const buf = await crypto.subtle.digest('SHA-1', data);
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Node path — built‑in ‘crypto’ module
+  const { createHash } = await import('crypto');
+  return createHash('sha1').update(data).digest('hex');
+}
+
 export function formatShutter(s) {
-  const v = parseFloat(s);
+  if (s == null) return "";
+
+  let v;
+
+  if (typeof s === "number") {
+    v = s;
+  } else {
+    const str = String(s).trim();
+    if (str.includes("/")) {
+      const [num, den] = str.split("/").map(Number);
+      if (num && den) v = num / den;
+    } else {
+      v = parseFloat(str);
+    }
+  }
+
   if (!v) return "";
   return v >= 1 ? `${v}s` : `1/${Math.round(1 / v)}s`;
 }
+
+// Extract aperture from "f/2.8", "F2.8", etc.
 export function extractAperture(lens = "") {
-  const m = lens.match(/F(\d+\.?\d*)/i);
+  const m = lens.match(/f\/?(\d+(\.\d+)?)/i);
   return m ? m[1] : "";
 }
 </file>
@@ -229,6 +426,35 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+</file>
+
+<file path="Dockerfile">
+# site/Dockerfile
+# ---------- build stage ----------
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# copy just package.json so Docker can cache 'npm install'
+COPY package.json ./
+
+# install deps (will read package-lock.json if you add it later)
+RUN npm install --foreground-scripts
+
+# now bring in the rest of your source
+COPY . .
+
+# build into /app/dist
+RUN npm run build
+
+# ---------- production stage ----------
+FROM nginx:1.27-alpine
+
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 </file>
 
 <file path="eslint.config.js">
@@ -277,6 +503,29 @@ export default defineConfig([
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+</file>
+
+<file path="nginx.conf">
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 30M;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA routing
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # API passthrough → FastAPI service
+    location /photos {
+        proxy_pass http://backend:8000$request_uri;
+    }
+    location /photos.json {
+        proxy_pass http://backend:8000/photos;
+    }
+}
 </file>
 
 <file path="package.json">

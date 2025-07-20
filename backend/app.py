@@ -5,16 +5,17 @@ REST‑based photo‑hosting service.
   • Uploads original images plus “small” (≤ 1600 px) and “thumbnail”
     (≤ 400 px) variants to an S3 bucket.
   • Extracts EXIF / XMP metadata (camera, lens, ISO, aperture, shutter,
-    focal length, title, rating); callers may override *title* / *rating*
-    in the request.
-  • Stores all metadata and S3 URLs in a relational database.
-  • Exposes a small FastAPI surface:
+    focal length, title); callers may override *title* in the request.
+  • Stores all metadata—including a sortable *sort_order*—and S3 URLs in a
+    relational database.
+  • Exposes a FastAPI surface:
 
-      GET    /photos           → list all records
-      POST   /photos           → upload new image
-      DELETE /photos/{id}      → remove image and variants
+      GET     /photos             → list all records
+      POST    /photos             → upload new image
+      PATCH   /photos/{id}        → edit title / sort order
+      DELETE  /photos/{id}        → remove image and variants
 """
-
+# ── Imports ───────────────────────────────────────────────────────────────
 import hashlib
 import logging
 import mimetypes
@@ -35,7 +36,7 @@ from sqlalchemy import Column, DateTime, Integer, String, create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
-# ── Configuration ──────────────────────────────────────────────────────────
+# ── Configuration ─────────────────────────────────────────────────────────
 load_dotenv()
 
 AWS_REGION   = os.getenv("AWS_DEFAULT_REGION", "us‑east‑1")
@@ -66,7 +67,7 @@ engine        = create_engine(DB_URL, connect_args={"check_same_thread": False} 
 SessionLocal  = sessionmaker(bind=engine, expire_on_commit=False)
 Base          = declarative_base()
 
-# ── ORM model ──────────────────────────────────────────────────────────────
+# ── ORM model ─────────────────────────────────────────────────────────────
 class Photo(Base):
     __tablename__ = "photos"
 
@@ -77,7 +78,7 @@ class Photo(Base):
     original_url   = Column(String, nullable=False)
     small_url      = Column(String)
     thumbnail_url  = Column(String)
-    rating         = Column(Integer)
+    sort_order     = Column(Integer, default=0, nullable=False)
     title          = Column(String)
     camera         = Column(String)
     lens           = Column(String)
@@ -90,7 +91,7 @@ class Photo(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# ── Utility helpers ────────────────────────────────────────────────────────
+# ── Utility helpers ───────────────────────────────────────────────────────
 def db_session() -> Iterator[Session]:
     """FastAPI dependency providing a SQLAlchemy Session."""
     session = SessionLocal()
@@ -132,8 +133,7 @@ def delete_file(key: str) -> None:
     logger.info("Deleting key=%s from S3", key)
     s3.delete_object(Bucket=S3_BUCKET, Key=key)
 
-
-# ── EXIF extraction ────────────────────────────────────────────────────────
+# ── EXIF extraction ───────────────────────────────────────────────────────
 def _rational_to_float(value) -> float | None:
     if isinstance(value, (tuple, list)) and len(value) == 2 and value[1]:
         return value[0] / value[1]
@@ -145,6 +145,7 @@ def _rational_to_float(value) -> float | None:
 
 
 def extract_exif(path: Path) -> dict[str, Any]:
+    """Return a subset of EXIF/XMP metadata useful for display."""
     exif: dict[str, Any] = {}
     try:
         with Image.open(path) as img:
@@ -186,20 +187,9 @@ def extract_exif(path: Path) -> dict[str, Any]:
     if title:
         exif["title"] = str(title).strip()
 
-    rating_tag = tag_map.get("Rating") or tag_map.get("RatingPercent")
-    if rating_tag is not None:
-        try:
-            val = int(rating_tag[0] if isinstance(rating_tag, (list, tuple)) else rating_tag)
-            if val > 5:                            # RatingPercent 0‑100 → 0‑5
-                val = round(val / 20)
-            exif["rating"] = val
-        except Exception:
-            pass
-
     return exif
 
-
-# ── Variant generation ─────────────────────────────────────────────────────
+# ── Variant generation ────────────────────────────────────────────────────
 TMP_ROOT       = Path(tempfile.gettempdir()) / "photo_variants"
 VARIANT_DIRS   = {"thumbnail": TMP_ROOT / "thumb", "small": TMP_ROOT / "small"}
 VARIANT_SIZES  = {"thumbnail": 400, "small": 1600}
@@ -221,15 +211,14 @@ def ensure_variant_file(base: Path, variant: str) -> Path:
         img.save(out_path, **save_kwargs)
     return out_path
 
-
-# ── Schemas ────────────────────────────────────────────────────────────────
+# ── Schemas ───────────────────────────────────────────────────────────────
 class PhotoOut(BaseModel):
     id:            int
     name:          str
     original_url:  str
     small_url:     str | None = None
     thumbnail_url: str | None = None
-    rating:        int | None = None
+    sort_order:    int
     title:         str | None = None
     camera:        str | None = None
     lens:          str | None = None
@@ -243,19 +232,28 @@ class PhotoOut(BaseModel):
         orm_mode = True
 
 
-# ── FastAPI app ────────────────────────────────────────────────────────────
+class PhotoUpdate(BaseModel):
+    """Fields that can be edited after upload."""
+    title:      str | None = None
+    sort_order: int | None = None
+
+# ── FastAPI app ───────────────────────────────────────────────────────────
 app = FastAPI(title="Photo API")
 
 @app.get("/photos", response_model=list[PhotoOut])
 def list_photos(db: Session = Depends(db_session)):
-    return db.query(Photo).order_by(Photo.id.desc()).all()
-
+    """Return all photos, sorted first by *sort_order* then newest‑first."""
+    return (
+        db.query(Photo)
+        .order_by(Photo.sort_order.asc(), Photo.id.desc())
+        .all()
+    )
 
 @app.post("/photos", response_model=PhotoOut, status_code=201)
 def upload_photo(
     file: UploadFile = File(...),
-    rating: int | None = Form(None),
     title: str | None = Form(None),
+    sort_order: int = Form(0),
     db: Session = Depends(db_session),
 ):
     # — Save upload to a temp file
@@ -269,8 +267,7 @@ def upload_photo(
     size  = original.stat().st_size
     exif  = extract_exif(original)
 
-    if rating is not None:
-        exif["rating"] = rating
+    # allow caller to override title
     if title is not None:
         exif["title"] = title
 
@@ -292,8 +289,9 @@ def upload_photo(
         original_url=url_original,
         small_url=urls["small"],
         thumbnail_url=urls["thumbnail"],
+        sort_order=sort_order,
         created_at=datetime.utcnow(),
-        **{k: exif.get(k) for k in ("rating","title","camera","lens","iso",
+        **{k: exif.get(k) for k in ("title","camera","lens","iso",
                                    "aperture","shutter_speed","focal_length")},
     )
     try:
@@ -305,6 +303,22 @@ def upload_photo(
     logger.info("Stored photo id=%s name=%s", photo.id, photo.name)
     return photo
 
+@app.patch("/photos/{photo_id}", response_model=PhotoOut,
+           responses={404: {"description": "Not found"}})
+def edit_photo(photo_id: int, payload: PhotoUpdate, db: Session = Depends(db_session)):
+    """Update *title* and/or *sort_order* for an existing photo."""
+    photo = db.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    if payload.title is not None:
+        photo.title = payload.title
+    if payload.sort_order is not None:
+        photo.sort_order = payload.sort_order
+
+    db.add(photo)          # session commit handled by dependency
+    logger.info("Updated photo id=%s name=%s", photo.id, photo.name)
+    return photo
 
 @app.delete("/photos/{photo_id}", status_code=204,
             responses={404: {"description": "Not found"}})
