@@ -10,53 +10,50 @@ export default function App() {
   const next   = useRef(0);
   const sent   = useRef(null);
 
-  // Fetch photos from API instead of JSON file
+  // 1 – Fetch once and load the first batch immediately
   useEffect(() => {
     fetch("/photos")
       .then(r => r.json())
-      .then(data => {
-        const arr = Array.isArray(data) ? data : Object.values(data);
-        // sort by sort_order ascending
-        const sorted = arr.sort((a, b) => a.sort_order - b.sort_order);
-        // map original_url to url for the Photo component
+      .then(raw => {
+        const arr    = Array.isArray(raw) ? raw : Object.values(raw);
+        const sorted = [...arr].sort((a, b) => a.sort_order - b.sort_order);
         const mapped = sorted.map(p => ({ ...p, url: p.original_url }));
         setAll(mapped);
+
+        const first  = mapped.slice(0, BATCH);   // prime the gallery
+        setShow(first);
+        next.current = first.length;
       })
       .catch(console.error);
   }, []);
 
-  const load = useCallback(() => {
+  // 2 – Function that pushes the next batch
+  const loadMore = useCallback(() => {
     if (next.current >= all.length) return;
-    setShow(v => {
+    setShow(prev => {
       const slice = all.slice(next.current, next.current + BATCH);
       next.current += slice.length;
-      return [...v, ...slice];
+      return [...prev, ...slice];
     });
   }, [all]);
 
+  // 3 – Infinite scroll once data AND sentinel are in place
   useEffect(() => {
-    if (!all.length) return;
-    load();
+    if (!all.length || !sent.current) return;
 
     const ob = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          load();
-          if (next.current >= all.length && sent.current) ob.disconnect();
-        }
-      },
+      ([entry]) => entry.isIntersecting && loadMore(),
       { rootMargin: "200px" }
     );
 
-    if (sent.current) ob.observe(sent.current);
+    ob.observe(sent.current);
     return () => ob.disconnect();
-  }, [all, load]);
+  }, [all, loadMore]);
 
   return (
     <>
-      <h1>Photo Gallery</h1>
       <Gallery items={show} />
-      <div id="sentinel" ref={sent} style={{ height: 1 }} />
+      <div ref={sent} style={{ height: 1 }} />
     </>
   );
 }
