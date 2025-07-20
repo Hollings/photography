@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    # point to your own values or copy this block to a local “.env” file
+    environment:
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-us‑east‑1}"
+      S3_BUCKET:          "${S3_BUCKET}"
+      AWS_ACCESS_KEY_ID:  "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      DATABASE_URL:       "${DATABASE_URL:-sqlite:///data/photos.db}"
+      LOG_LEVEL:          "${LOG_LEVEL:-INFO}"
+    volumes:
+      - db_data:/data                    # keeps the SQLite file persistent
+    ports:
+      - "8000:8000"                      # http://localhost:8000
+    restart: unless-stopped
+
+  frontend:
+    build: ./site
+    ports:
+      - "3000:80"                        # http://localhost:3000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db_data:
