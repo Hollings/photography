@@ -10,11 +10,18 @@ export default function App() {
   const next   = useRef(0);
   const sent   = useRef(null);
 
-  // Fetch photos in the order provided by the API (sort_order → newest)
+  // Fetch photos from API instead of JSON file
   useEffect(() => {
-    fetch("/photos.json")
+    fetch("/photos")
       .then(r => r.json())
-      .then(d => setAll(Array.isArray(d) ? d : Object.values(d)))
+      .then(data => {
+        const arr = Array.isArray(data) ? data : Object.values(data);
+        // sort by sort_order ascending
+        const sorted = arr.sort((a, b) => a.sort_order - b.sort_order);
+        // map original_url to url for the Photo component
+        const mapped = sorted.map(p => ({ ...p, url: p.original_url }));
+        setAll(mapped);
+      })
       .catch(console.error);
   }, []);
 

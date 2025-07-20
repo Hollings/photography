@@ -1,7 +1,8 @@
-boto3>=1.34
-fastapi>=0.110
-uvicorn[standard]>=0.29
-pillow>=10.0
-python-dotenv>=1.0
-sqlalchemy>=2.0
-python-multipart
+fastapi
+uvicorn[standard]
+boto3
+python-dotenv
+SQLAlchemy
+databases[sqlite]
+pillow              # PIL.Image used in utils/*
+python-multipart    # required for UploadFile in FastAPI

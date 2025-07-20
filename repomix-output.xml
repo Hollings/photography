@@ -41,9 +41,25 @@ The content is organized as follows:
 
 <directory_structure>
 backend/
-  app.py
+  api/
+    __init__.py
+    photos.py
+  utils/
+    __init__.py
+    exif.py
+    hashing.py
+    image_variants.py
+    storage.py
+  __init__.py
+  config.py
+  database.py
+  deps.py
   Dockerfile
+  main.py
+  models.py
+  repomix-output.xml
   requirements.txt
+  schemas.py
 site/
   public/
     vite.svg
@@ -56,6 +72,7 @@ site/
     App.jsx
     index.css
     main.jsx
+    Management.jsx
     utils.js
   .gitignore
   Dockerfile
@@ -73,144 +90,140 @@ docker-compose.yml
 <files>
 This section contains the contents of the repository's files.
 
-<file path="backend/app.py">
-#!/usr/bin/env python3
-"""
-REST‑based photo‑hosting service.
+<file path="backend/api/__init__.py">
+"""API routers."""
+</file>
 
-  • Uploads original images plus “small” (≤ 1600 px) and “thumbnail”
-    (≤ 400 px) variants to an S3 bucket.
-  • Extracts EXIF / XMP metadata (camera, lens, ISO, aperture, shutter,
-    focal length, title, rating); callers may override *title* / *rating*
-    in the request.
-  • Stores all metadata and S3 URLs in a relational database.
-  • Exposes a small FastAPI surface:
-
-      GET    /photos           → list all records
-      POST   /photos           → upload new image
-      DELETE /photos/{id}      → remove image and variants
-"""
-
-import hashlib
-import logging
-import mimetypes
-import os
+<file path="backend/api/photos.py">
 import tempfile
 from datetime import datetime
+from pathlib import Path
+from typing import Dict
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from ..deps import get_db
+from ..models import Photo
+from ..schemas import PhotoOut, PhotoUpdate
+from ..utils.exif import extract_exif
+from ..utils.hashing import file_sha1
+from ..utils.image_variants import VariantBuilder
+from ..utils.storage import S3Storage
+
+router          = APIRouter()
+variant_builder = VariantBuilder()
+storage         = S3Storage()
+
+
+@router.get("/photos", response_model=list[PhotoOut])
+def list_photos(db: Session = Depends(get_db)):
+    return (
+        db.query(Photo)
+        .order_by(Photo.sort_order.asc(), Photo.id.desc())
+        .all()
+    )
+
+
+@router.post("/photos", response_model=PhotoOut, status_code=201)
+def upload_photo(
+    file: UploadFile = File(...),
+    title: str | None = Form(None),
+    sort_order: int   = Form(0),
+    db: Session       = Depends(get_db),
+):
+    tmp_dir  = Path(tempfile.mkdtemp(prefix="photo_upload_"))
+    original = tmp_dir / file.filename
+    with original.open("wb") as fh:
+        for chunk in iter(lambda: file.file.read(8192), b""):
+            fh.write(chunk)
+
+    sha1  = file_sha1(original)
+    size  = original.stat().st_size
+    exif  = extract_exif(original)
+
+    if title is not None:
+        exif["title"] = title
+
+    key_original = f"full/{original.name}"
+    url_original = storage.upload_file(original, key_original)
+
+    urls: Dict[str, str | None] = {"small": None, "thumbnail": None}
+    for variant in variant_builder.VARIANT_SPECS:
+        vfile = variant_builder.ensure_variant(original, variant)
+        key   = f"{variant}/{vfile.name}"
+        urls[variant] = storage.upload_file(vfile, key)
+
+    photo = Photo(
+        name           = original.name,
+        sha1           = sha1,
+        size           = size,
+        original_url   = url_original,
+        small_url      = urls["small"],
+        thumbnail_url  = urls["thumbnail"],
+        sort_order     = sort_order,
+        created_at     = datetime.utcnow(),
+        **{k: exif.get(k) for k in (
+            "title", "camera", "lens", "iso",
+            "aperture", "shutter_speed", "focal_length",
+        )},
+    )
+    try:
+        db.add(photo)
+        db.flush()
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="A photo with this name already exists")
+
+    return photo
+
+
+@router.patch("/photos/{photo_id}", response_model=PhotoOut,
+              responses={404: {"description": "Not found"}})
+def edit_photo(photo_id: int, payload: PhotoUpdate, db: Session = Depends(get_db)):
+    photo = db.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    if payload.title is not None:
+        photo.title = payload.title
+    if payload.sort_order is not None:
+        photo.sort_order = payload.sort_order
+
+    db.add(photo)
+    return photo
+
+
+@router.delete("/photos/{photo_id}", status_code=204,
+               responses={404: {"description": "Not found"}})
+def delete_photo(photo_id: int, db: Session = Depends(get_db)):
+    photo = db.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    storage.delete_file(photo.original_url.split("/", 3)[-1])
+    if photo.small_url:
+        storage.delete_file(photo.small_url.split("/", 3)[-1])
+    if photo.thumbnail_url:
+        storage.delete_file(photo.thumbnail_url.split("/", 3)[-1])
+
+    db.delete(photo)
+    return {}
+</file>
+
+<file path="backend/utils/__init__.py">
+"""Utility helpers (hashing, EXIF, variants, S3 storage)."""
+</file>
+
+<file path="backend/utils/exif.py">
 from fractions import Fraction
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Dict, Optional
 
-import boto3
-from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
-from PIL import Image, ImageOps, ExifTags
-from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, Integer, String, create_engine
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
-
-# ── Configuration ──────────────────────────────────────────────────────────
-load_dotenv()
-
-AWS_REGION   = os.getenv("AWS_DEFAULT_REGION", "us‑east‑1")
-S3_BUCKET    = os.getenv("S3_BUCKET")
-AWS_KEY      = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET   = os.getenv("AWS_SECRET_ACCESS_KEY")
-DB_URL       = os.getenv("DATABASE_URL", "sqlite:///photos.db")
-LOG_LEVEL    = os.getenv("LOG_LEVEL", "INFO").upper()
-
-if not all([S3_BUCKET, AWS_KEY, AWS_SECRET]):
-    raise RuntimeError("S3_BUCKET / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are required")
-
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL, logging.INFO),
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y‑%m‑%d %H:%M:%S",
-)
-logger = logging.getLogger(__name__)
-
-s3 = boto3.client(
-    "s3",
-    region_name=AWS_REGION,
-    aws_access_key_id=AWS_KEY,
-    aws_secret_access_key=AWS_SECRET,
-)
-
-engine        = create_engine(DB_URL, connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {})
-SessionLocal  = sessionmaker(bind=engine, expire_on_commit=False)
-Base          = declarative_base()
-
-# ── ORM model ──────────────────────────────────────────────────────────────
-class Photo(Base):
-    __tablename__ = "photos"
-
-    id             = Column(Integer, primary_key=True)
-    name           = Column(String, unique=True, nullable=False)
-    sha1           = Column(String(40), nullable=False)
-    size           = Column(Integer, nullable=False)
-    original_url   = Column(String, nullable=False)
-    small_url      = Column(String)
-    thumbnail_url  = Column(String)
-    rating         = Column(Integer)
-    title          = Column(String)
-    camera         = Column(String)
-    lens           = Column(String)
-    iso            = Column(Integer)
-    aperture       = Column(String)
-    shutter_speed  = Column(String)
-    focal_length   = Column(String)
-    created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+from PIL import ExifTags, Image, ImageOps
 
 
-Base.metadata.create_all(bind=engine)
-
-# ── Utility helpers ────────────────────────────────────────────────────────
-def db_session() -> Iterator[Session]:
-    """FastAPI dependency providing a SQLAlchemy Session."""
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-
-def file_sha1(fp: Path) -> str:
-    h = hashlib.sha1()
-    with fp.open("rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def public_url(key: str) -> str:
-    return f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
-
-
-def upload_file(path: Path, key: str) -> str:
-    mimetype, _ = mimetypes.guess_type(path.name)
-    logger.info("Uploading %s → %s", path.name, key)
-    s3.upload_file(
-        str(path),
-        S3_BUCKET,
-        key,
-        ExtraArgs={"ACL": "public-read", "ContentType": mimetype or "application/octet-stream"},
-    )
-    return public_url(key)
-
-
-def delete_file(key: str) -> None:
-    logger.info("Deleting key=%s from S3", key)
-    s3.delete_object(Bucket=S3_BUCKET, Key=key)
-
-
-# ── EXIF extraction ────────────────────────────────────────────────────────
-def _rational_to_float(value) -> float | None:
+def _rational_to_float(value) -> Optional[float]:
     if isinstance(value, (tuple, list)) and len(value) == 2 and value[1]:
         return value[0] / value[1]
     if isinstance(value, Fraction):
@@ -220,15 +233,16 @@ def _rational_to_float(value) -> float | None:
     return None
 
 
-def extract_exif(path: Path) -> dict[str, Any]:
-    exif: dict[str, Any] = {}
+def extract_exif(path: Path) -> Dict[str, Any]:
+    exif: Dict[str, Any] = {}
     try:
         with Image.open(path) as img:
-            raw_exif = img._getexif() or {}
+            img = ImageOps.exif_transpose(img)
+            raw  = img._getexif() or {}
     except Exception:
         return exif
 
-    tag_map = {ExifTags.TAGS.get(k, k): v for k, v in raw_exif.items()}
+    tag_map = {ExifTags.TAGS.get(k, k): v for k, v in raw.items()}
 
     if (model := tag_map.get("Model")):
         exif["camera"] = str(model).strip()
@@ -255,88 +269,315 @@ def extract_exif(path: Path) -> dict[str, Any]:
 
     title = tag_map.get("ImageDescription") or tag_map.get("XPTitle") or tag_map.get("Title")
     if isinstance(title, bytes):
-        try:
-            title = title.decode("utf-16").rstrip("\x00")
-        except Exception:
-            title = None
+            try:
+                title = title.decode("utf‑16").rstrip("\x00")
+            except Exception:
+                title = None
     if title:
         exif["title"] = str(title).strip()
 
-    rating_tag = tag_map.get("Rating") or tag_map.get("RatingPercent")
-    if rating_tag is not None:
-        try:
-            val = int(rating_tag[0] if isinstance(rating_tag, (list, tuple)) else rating_tag)
-            if val > 5:                            # RatingPercent 0‑100 → 0‑5
-                val = round(val / 20)
-            exif["rating"] = val
-        except Exception:
-            pass
-
     return exif
+</file>
+
+<file path="backend/utils/hashing.py">
+import hashlib
+from pathlib import Path
 
 
-# ── Variant generation ─────────────────────────────────────────────────────
-TMP_ROOT       = Path(tempfile.gettempdir()) / "photo_variants"
-VARIANT_DIRS   = {"thumbnail": TMP_ROOT / "thumb", "small": TMP_ROOT / "small"}
-VARIANT_SIZES  = {"thumbnail": 400, "small": 1600}
+def file_sha1(path: Path) -> str:
+    h = hashlib.sha1()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+</file>
 
-def ensure_variant_file(base: Path, variant: str) -> Path:
-    target_px = VARIANT_SIZES[variant]
-    out_path  = VARIANT_DIRS[variant] / base.name
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+<file path="backend/utils/image_variants.py">
+import tempfile
+from pathlib import Path
+from typing import Any
 
-    if out_path.exists() and out_path.stat().st_mtime >= base.stat().st_mtime:
+from PIL import Image, ImageOps
+
+
+class VariantBuilder:
+    TMP_ROOT       = Path(tempfile.gettempdir()) / "photo_variants"
+    VARIANT_SPECS  = {"thumbnail": 400, "small": 1600}
+
+    def ensure_variant(self, base: Path, variant: str) -> Path:
+        target_px = self.VARIANT_SPECS[variant]
+        out_path  = (self.TMP_ROOT / variant) / base.name
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if out_path.exists() and out_path.stat().st_mtime >= base.stat().st_mtime:
+            return out_path
+
+        with Image.open(base) as img:
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((target_px, target_px), resample=Image.LANCZOS)
+            save_kwargs: dict[str, Any] = {}
+            if img.format == "JPEG":
+                save_kwargs.update({"quality": 85, "optimize": True})
+            img.save(out_path, **save_kwargs)
         return out_path
+</file>
 
-    with Image.open(base) as img:
-        img = ImageOps.exif_transpose(img)
-        img.thumbnail((target_px, target_px), resample=Image.LANCZOS)
-        save_kwargs: dict[str, Any] = {}
-        if img.format == "JPEG":
-            save_kwargs.update({"quality": 85, "optimize": True})
-        img.save(out_path, **save_kwargs)
-    return out_path
+<file path="backend/utils/storage.py">
+import mimetypes
+from pathlib import Path
+
+from ..config import AWS_REGION, S3_BUCKET, logger, s3_client
 
 
-# ── Schemas ────────────────────────────────────────────────────────────────
-class PhotoOut(BaseModel):
-    id:            int
-    name:          str
-    original_url:  str
-    small_url:     str | None = None
-    thumbnail_url: str | None = None
-    rating:        int | None = None
-    title:         str | None = None
-    camera:        str | None = None
-    lens:          str | None = None
-    iso:           int | None = None
-    aperture:      str | None = None
-    shutter_speed: str | None = None
-    focal_length:  str | None = None
-    created_at:    datetime
+class S3Storage:
+    def __init__(self, bucket: str = S3_BUCKET, region: str = AWS_REGION):
+        self.bucket = bucket
+        self.region = region
+        self.client = s3_client
 
-    class Config:
-        orm_mode = True
+    def public_url(self, key: str) -> str:
+        return f"https://{self.bucket}.s3.{self.region}.amazonaws.com/{key}"
+
+    def upload_file(self, path: Path, key: str) -> str:
+        mimetype, _ = mimetypes.guess_type(path.name)
+        logger.info("Uploading %s → %s", path.name, key)
+        self.client.upload_file(
+            str(path),
+            self.bucket,
+            key,
+            ExtraArgs={"ACL": "public-read", "ContentType": mimetype or "application/octet-stream"},
+        )
+        return self.public_url(key)
+
+    def delete_file(self, key: str) -> None:
+        logger.info("Deleting key=%s from S3", key)
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+</file>
+
+<file path="backend/__init__.py">
+"""Package marker for the Photo Service."""
+</file>
+
+<file path="backend/config.py">
+import logging
+import os
+
+import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
+
+AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us‑east‑1")
+S3_BUCKET  = os.getenv("S3_BUCKET")
+AWS_KEY    = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET = os.getenv("AWS_SECRET_ACCESS_KEY")
+DB_URL     = os.getenv("DATABASE_URL", "sqlite:///photos.db")
+LOG_LEVEL  = os.getenv("LOG_LEVEL", "INFO").upper()
+
+if not all([S3_BUCKET, AWS_KEY, AWS_SECRET]):
+    raise RuntimeError(
+        "S3_BUCKET, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set"
+    )
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y‑%m‑%d %H:%M:%S",
+)
+logger = logging.getLogger("photo_service")
+
+s3_client = boto3.client(
+    "s3",
+    region_name=AWS_REGION,
+    aws_access_key_id=AWS_KEY,
+    aws_secret_access_key=AWS_SECRET,
+)
+</file>
+
+<file path="backend/database.py">
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from .config import DB_URL
+
+connect_opts = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
+engine       = create_engine(DB_URL, connect_args=connect_opts)
+
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+Base         = declarative_base()
+</file>
+
+<file path="backend/deps.py">
+from typing import Iterator
+
+from sqlalchemy.orm import Session
+
+from .database import SessionLocal
 
 
-# ── FastAPI app ────────────────────────────────────────────────────────────
-app = FastAPI(title="Photo API")
+def get_db() -> Iterator[Session]:
+    db: Session = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+</file>
 
-@app.get("/photos", response_model=list[PhotoOut])
-def list_photos(db: Session = Depends(db_session)):
-    return db.query(Photo).order_by(Photo.id.desc()).all()
+<file path="backend/main.py">
+from fastapi import FastAPI
+
+from .api.photos import router as photos_router
+
+app = FastAPI(title="Photo API")
+app.include_router(photos_router)
+</file>
+
+<file path="backend/models.py">
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Integer, String
+
+from .database import Base, engine
 
 
-@app.post("/photos", response_model=PhotoOut, status_code=201)
+class Photo(Base):
+    __tablename__ = "photos"
+
+    id             = Column(Integer, primary_key=True)
+    name           = Column(String, unique=True, nullable=False)
+    sha1           = Column(String(40), nullable=False)
+    size           = Column(Integer, nullable=False)
+    original_url   = Column(String, nullable=False)
+    small_url      = Column(String)
+    thumbnail_url  = Column(String)
+    sort_order     = Column(Integer, default=0, nullable=False)
+    title          = Column(String)
+    camera         = Column(String)
+    lens           = Column(String)
+    iso            = Column(Integer)
+    aperture       = Column(String)
+    shutter_speed  = Column(String)
+    focal_length   = Column(String)
+    created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# Bootstrap tables (safe—no‑op if already present)
+Base.metadata.create_all(bind=engine)
+</file>
+
+<file path="backend/repomix-output.xml">
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+api/
+  __init__.py
+  photos.py
+utils/
+  __init__.py
+  exif.py
+  hashing.py
+  image_variants.py
+  storage.py
+__init__.py
+config.py
+database.py
+deps.py
+main.py
+models.py
+schemas.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="api/__init__.py">
+"""API routers."""
+</file>
+
+<file path="api/photos.py">
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import Dict
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from ..deps import get_db
+from ..models import Photo
+from ..schemas import PhotoOut, PhotoUpdate
+from ..utils.exif import extract_exif
+from ..utils.hashing import file_sha1
+from ..utils.image_variants import VariantBuilder
+from ..utils.storage import S3Storage
+
+router          = APIRouter()
+variant_builder = VariantBuilder()
+storage         = S3Storage()
+
+
+@router.get("/photos", response_model=list[PhotoOut])
+def list_photos(db: Session = Depends(get_db)):
+    return (
+        db.query(Photo)
+        .order_by(Photo.sort_order.asc(), Photo.id.desc())
+        .all()
+    )
+
+
+@router.post("/photos", response_model=PhotoOut, status_code=201)
 def upload_photo(
     file: UploadFile = File(...),
-    rating: int | None = Form(None),
     title: str | None = Form(None),
-    db: Session = Depends(db_session),
+    sort_order: int   = Form(0),
+    db: Session       = Depends(get_db),
 ):
-    # — Save upload to a temp file
-    tmp_dir   = Path(tempfile.mkdtemp(prefix="photo_upload_"))
-    original  = tmp_dir / file.filename
+    tmp_dir  = Path(tempfile.mkdtemp(prefix="photo_upload_"))
+    original = tmp_dir / file.filename
     with original.open("wb") as fh:
         for chunk in iter(lambda: file.file.read(8192), b""):
             fh.write(chunk)
@@ -345,89 +586,415 @@ def upload_photo(
     size  = original.stat().st_size
     exif  = extract_exif(original)
 
-    if rating is not None:
-        exif["rating"] = rating
     if title is not None:
         exif["title"] = title
 
-    # — Upload original + variants
-    key_original  = f"full/{original.name}"
-    url_original  = upload_file(original, key_original)
+    key_original = f"full/{original.name}"
+    url_original = storage.upload_file(original, key_original)
 
-    urls: dict[str, str | None] = {"small": None, "thumbnail": None}
-    for variant in VARIANT_DIRS:
-        vfile = ensure_variant_file(original, variant)
+    urls: Dict[str, str | None] = {"small": None, "thumbnail": None}
+    for variant in variant_builder.VARIANT_SPECS:
+        vfile = variant_builder.ensure_variant(original, variant)
         key   = f"{variant}/{vfile.name}"
-        urls[variant] = upload_file(vfile, key)
+        urls[variant] = storage.upload_file(vfile, key)
 
-    # — Persist DB row
     photo = Photo(
-        name=original.name,
-        sha1=sha1,
-        size=size,
-        original_url=url_original,
-        small_url=urls["small"],
-        thumbnail_url=urls["thumbnail"],
-        created_at=datetime.utcnow(),
-        **{k: exif.get(k) for k in ("rating","title","camera","lens","iso",
-                                   "aperture","shutter_speed","focal_length")},
+        name           = original.name,
+        sha1           = sha1,
+        size           = size,
+        original_url   = url_original,
+        small_url      = urls["small"],
+        thumbnail_url  = urls["thumbnail"],
+        sort_order     = sort_order,
+        created_at     = datetime.utcnow(),
+        **{k: exif.get(k) for k in (
+            "title", "camera", "lens", "iso",
+            "aperture", "shutter_speed", "focal_length",
+        )},
     )
     try:
         db.add(photo)
-        db.flush()          # ← get auto‑ID
+        db.flush()
     except IntegrityError:
         raise HTTPException(status_code=409, detail="A photo with this name already exists")
 
-    logger.info("Stored photo id=%s name=%s", photo.id, photo.name)
     return photo
 
 
-@app.delete("/photos/{photo_id}", status_code=204,
-            responses={404: {"description": "Not found"}})
-def delete_photo(photo_id: int, db: Session = Depends(db_session)):
+@router.patch("/photos/{photo_id}", response_model=PhotoOut,
+              responses={404: {"description": "Not found"}})
+def edit_photo(photo_id: int, payload: PhotoUpdate, db: Session = Depends(get_db)):
     photo = db.get(Photo, photo_id)
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
 
-    # — Delete from S3
-    delete_file(photo.original_url.split("/", 3)[-1])
+    if payload.title is not None:
+        photo.title = payload.title
+    if payload.sort_order is not None:
+        photo.sort_order = payload.sort_order
+
+    db.add(photo)
+    return photo
+
+
+@router.delete("/photos/{photo_id}", status_code=204,
+               responses={404: {"description": "Not found"}})
+def delete_photo(photo_id: int, db: Session = Depends(get_db)):
+    photo = db.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    storage.delete_file(photo.original_url.split("/", 3)[-1])
     if photo.small_url:
-        delete_file(photo.small_url.split("/", 3)[-1])
+        storage.delete_file(photo.small_url.split("/", 3)[-1])
     if photo.thumbnail_url:
-        delete_file(photo.thumbnail_url.split("/", 3)[-1])
+        storage.delete_file(photo.thumbnail_url.split("/", 3)[-1])
 
     db.delete(photo)
-    logger.info("Removed photo id=%s name=%s", photo.id, photo.name)
-    return JSONResponse(status_code=204, content={})
+    return {}
+</file>
+
+<file path="utils/__init__.py">
+"""Utility helpers (hashing, EXIF, variants, S3 storage)."""
+</file>
+
+<file path="utils/exif.py">
+from fractions import Fraction
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from PIL import ExifTags, Image, ImageOps
+
+
+def _rational_to_float(value) -> Optional[float]:
+    if isinstance(value, (tuple, list)) and len(value) == 2 and value[1]:
+        return value[0] / value[1]
+    if isinstance(value, Fraction):
+        return float(value)
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def extract_exif(path: Path) -> Dict[str, Any]:
+    exif: Dict[str, Any] = {}
+    try:
+        with Image.open(path) as img:
+            img = ImageOps.exif_transpose(img)
+            raw  = img._getexif() or {}
+    except Exception:
+        return exif
+
+    tag_map = {ExifTags.TAGS.get(k, k): v for k, v in raw.items()}
+
+    if (model := tag_map.get("Model")):
+        exif["camera"] = str(model).strip()
+
+    if (lens := tag_map.get("LensModel")):
+        exif["lens"] = str(lens).strip()
+
+    if (iso_val := tag_map.get("ISOSpeedRatings") or tag_map.get("PhotographicSensitivity")):
+        exif["iso"] = int(iso_val[0] if isinstance(iso_val, (list, tuple)) else iso_val)
+
+    if (fnum := tag_map.get("FNumber")) is not None:
+        if (f := _rational_to_float(fnum)):
+            exif["aperture"] = f"f/{f:.1f}"
+
+    if (shutter := tag_map.get("ExposureTime")) is not None:
+        if isinstance(shutter, (tuple, list)) and len(shutter) == 2 and shutter[1]:
+            exif["shutter_speed"] = f"{shutter[0]}/{shutter[1]} s"
+        else:
+            exif["shutter_speed"] = str(shutter)
+
+    if (focal := tag_map.get("FocalLength")) is not None:
+        if (fl := _rational_to_float(focal)):
+            exif["focal_length"] = f"{fl:.0f} mm"
+
+    title = tag_map.get("ImageDescription") or tag_map.get("XPTitle") or tag_map.get("Title")
+    if isinstance(title, bytes):
+            try:
+                title = title.decode("utf‑16").rstrip("\x00")
+            except Exception:
+                title = None
+    if title:
+        exif["title"] = str(title).strip()
+
+    return exif
+</file>
+
+<file path="utils/hashing.py">
+import hashlib
+from pathlib import Path
+
+
+def file_sha1(path: Path) -> str:
+    h = hashlib.sha1()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+</file>
+
+<file path="utils/image_variants.py">
+import tempfile
+from pathlib import Path
+from typing import Any
+
+from PIL import Image, ImageOps
+
+
+class VariantBuilder:
+    TMP_ROOT       = Path(tempfile.gettempdir()) / "photo_variants"
+    VARIANT_SPECS  = {"thumbnail": 400, "small": 1600}
+
+    def ensure_variant(self, base: Path, variant: str) -> Path:
+        target_px = self.VARIANT_SPECS[variant]
+        out_path  = (self.TMP_ROOT / variant) / base.name
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if out_path.exists() and out_path.stat().st_mtime >= base.stat().st_mtime:
+            return out_path
+
+        with Image.open(base) as img:
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((target_px, target_px), resample=Image.LANCZOS)
+            save_kwargs: dict[str, Any] = {}
+            if img.format == "JPEG":
+                save_kwargs.update({"quality": 85, "optimize": True})
+            img.save(out_path, **save_kwargs)
+        return out_path
+</file>
+
+<file path="utils/storage.py">
+import mimetypes
+from pathlib import Path
+
+from ..config import AWS_REGION, S3_BUCKET, logger, s3_client
+
+
+class S3Storage:
+    def __init__(self, bucket: str = S3_BUCKET, region: str = AWS_REGION):
+        self.bucket = bucket
+        self.region = region
+        self.client = s3_client
+
+    def public_url(self, key: str) -> str:
+        return f"https://{self.bucket}.s3.{self.region}.amazonaws.com/{key}"
+
+    def upload_file(self, path: Path, key: str) -> str:
+        mimetype, _ = mimetypes.guess_type(path.name)
+        logger.info("Uploading %s → %s", path.name, key)
+        self.client.upload_file(
+            str(path),
+            self.bucket,
+            key,
+            ExtraArgs={"ACL": "public-read", "ContentType": mimetype or "application/octet-stream"},
+        )
+        return self.public_url(key)
+
+    def delete_file(self, key: str) -> None:
+        logger.info("Deleting key=%s from S3", key)
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+</file>
+
+<file path="__init__.py">
+"""Package marker for the Photo Service."""
+</file>
+
+<file path="config.py">
+import logging
+import os
+
+import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
+
+AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us‑east‑1")
+S3_BUCKET  = os.getenv("S3_BUCKET")
+AWS_KEY    = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET = os.getenv("AWS_SECRET_ACCESS_KEY")
+DB_URL     = os.getenv("DATABASE_URL", "sqlite:///photos.db")
+LOG_LEVEL  = os.getenv("LOG_LEVEL", "INFO").upper()
+
+if not all([S3_BUCKET, AWS_KEY, AWS_SECRET]):
+    raise RuntimeError(
+        "S3_BUCKET, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set"
+    )
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y‑%m‑%d %H:%M:%S",
+)
+logger = logging.getLogger("photo_service")
+
+s3_client = boto3.client(
+    "s3",
+    region_name=AWS_REGION,
+    aws_access_key_id=AWS_KEY,
+    aws_secret_access_key=AWS_SECRET,
+)
+</file>
+
+<file path="database.py">
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from .config import DB_URL
+
+connect_opts = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
+engine       = create_engine(DB_URL, connect_args=connect_opts)
+
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+Base         = declarative_base()
+</file>
+
+<file path="deps.py">
+from typing import Iterator
+
+from sqlalchemy.orm import Session
+
+from .database import SessionLocal
+
+
+def get_db() -> Iterator[Session]:
+    db: Session = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+</file>
+
+<file path="main.py">
+from fastapi import FastAPI
+
+from .api.photos import router as photos_router
+
+app = FastAPI(title="Photo API")
+app.include_router(photos_router)
+</file>
+
+<file path="models.py">
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Integer, String
+
+from .database import Base, engine
+
+
+class Photo(Base):
+    __tablename__ = "photos"
+
+    id             = Column(Integer, primary_key=True)
+    name           = Column(String, unique=True, nullable=False)
+    sha1           = Column(String(40), nullable=False)
+    size           = Column(Integer, nullable=False)
+    original_url   = Column(String, nullable=False)
+    small_url      = Column(String)
+    thumbnail_url  = Column(String)
+    sort_order     = Column(Integer, default=0, nullable=False)
+    title          = Column(String)
+    camera         = Column(String)
+    lens           = Column(String)
+    iso            = Column(Integer)
+    aperture       = Column(String)
+    shutter_speed  = Column(String)
+    focal_length   = Column(String)
+    created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# Bootstrap tables (safe—no‑op if already present)
+Base.metadata.create_all(bind=engine)
+</file>
+
+<file path="schemas.py">
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
+
+class PhotoOut(BaseModel):
+    id:            int
+    name:          str
+    original_url:  str
+    small_url:     Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    sort_order:    int
+    title:         Optional[str] = None
+    camera:        Optional[str] = None
+    lens:          Optional[str] = None
+    iso:           Optional[int] = None
+    aperture:      Optional[str] = None
+    shutter_speed: Optional[str] = None
+    focal_length:  Optional[str] = None
+    created_at:    datetime
+
+    class Config:
+        orm_mode = True
+
+
+class PhotoUpdate(BaseModel):
+    title:      Optional[str] = None
+    sort_order: Optional[int] = None
+</file>
+
+</files>
+</file>
+
+<file path="backend/schemas.py">
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
+
+class PhotoOut(BaseModel):
+    id:            int
+    name:          str
+    original_url:  str
+    small_url:     Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    sort_order:    int
+    title:         Optional[str] = None
+    camera:        Optional[str] = None
+    lens:          Optional[str] = None
+    iso:           Optional[int] = None
+    aperture:      Optional[str] = None
+    shutter_speed: Optional[str] = None
+    focal_length:  Optional[str] = None
+    created_at:    datetime
+
+    class Config:
+        orm_mode = True
+
+
+class PhotoUpdate(BaseModel):
+    title:      Optional[str] = None
+    sort_order: Optional[int] = None
 </file>
 
 <file path="backend/Dockerfile">
-FROM python:3.11-slim
+# start from the official Python slim image
+FROM python:3.10-slim
 
+# set a working directory
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
+# install dependencies
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
+# copy the rest of the backend code
 COPY . .
 
-EXPOSE 8000
-
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-</file>
-
-<file path="backend/requirements.txt">
-boto3>=1.34
-fastapi>=0.110
-uvicorn[standard]>=0.29
-pillow>=10.0
-python-dotenv>=1.0
-sqlalchemy>=2.0
-python-multipart
+# default command: run Uvicorn on your FastAPI app
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 </file>
 
 <file path="site/public/vite.svg">
@@ -451,111 +1018,6 @@ export default function Gallery({ items }) {
 }
 </file>
 
-<file path="site/src/components/Photo.jsx">
-import React from "react";
-import { formatShutter, extractAperture } from "../utils";
-
-export default function Photo({ photo }) {
-  const {
-    title, name, camera, lens, shutter_speed,
-    iso, rating, url, small_url, thumbnail_url,
-  } = photo;
-
-  const src      = small_url || thumbnail_url || url;
-  const shutter  = formatShutter(shutter_speed);
-  const aperture = extractAperture(lens);
-  const exposure = [shutter, aperture && `f/${aperture}`, iso && `ISO ${iso}`]
-                     .filter(Boolean).join(" | ");
-
-  return (
-    <div className="photo">
-      <a href={url} target="_blank" rel="noopener noreferrer">
-        <img
-          src={src}
-          alt={title || name || "Photo"}
-          loading="lazy"
-          decoding="async"
-        />
-      </a>
-      <div className="caption">
-        <span className="title">{title || name}</span><br />
-        <span className="meta">
-          {camera}<br />
-          {lens}<br />
-          {exposure}{rating != null && ` | ★ ${rating}`}
-        </span>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="site/src/App.jsx">
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import Gallery from "./components/Gallery";
-import "./index.css";
-
-const BATCH = 10;
-
-export default function App() {
-  const [all,  setAll]  = useState([]);
-  const [show, setShow] = useState([]);
-  const next   = useRef(0);
-  const sent   = useRef(null);
-
-  // Fetch & sort photos
-  useEffect(() => {
-    fetch("/photos.json")
-      .then(r => r.json())
-      .then(d => {
-        const arr = Array.isArray(d) ? d : Object.values(d);
-        arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-        setAll(arr);
-      })
-      .catch(console.error);
-  }, []);
-
-  // Load helper
-  const load = useCallback(() => {
-    if (next.current >= all.length) return;         // nothing left
-    setShow(v => {
-      const slice = all.slice(next.current, next.current + BATCH);
-      next.current += slice.length;
-      return [...v, ...slice];
-    });
-  }, [all]);
-
-  // Infinite scroll
-  useEffect(() => {
-    if (!all.length) return;
-    load();                                         // first batch
-
-    const ob = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          load();
-          if (next.current >= all.length && sent.current) {
-            ob.disconnect();                       // stop once done
-          }
-        }
-      },
-      { rootMargin: "200px" }
-    );
-
-    if (sent.current) ob.observe(sent.current);
-    return () => ob.disconnect();
-  }, [all, load]);
-
-  return (
-    <>
-      <h1>Photo Gallery</h1>
-      <Gallery items={show} />
-      <div id="sentinel" ref={sent} style={{ height: 1 }} />
-    </>
-  );
-}
-</file>
-
 <file path="site/src/index.css">
 body { font-family: system-ui, sans-serif; margin: 0; }
 h1   { margin: 1.5rem 0; text-align: center; }
@@ -569,14 +1031,185 @@ h1   { margin: 1.5rem 0; text-align: center; }
 .caption .meta  { font-size: .8rem;  color: #666; }
 </file>
 
-<file path="site/src/main.jsx">
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App";
+<file path="site/src/Management.jsx">
+import React, { useEffect, useState, useCallback } from "react";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode><App /></React.StrictMode>
-);
+export default function Management() {
+  const [photos, setPhotos] = useState([]);
+  const [title, setTitle]   = useState("");
+  const [dragActive, setDragActive] = useState(false);
+  const [dragIdx,    setDragIdx]    = useState(null);
+
+  /* ----------------------------- helpers -------------------------------- */
+  const refresh = useCallback(() => {
+    fetch("/photos")
+      .then(r => r.json())
+      .then(setPhotos)
+      .catch(console.error);
+  }, []);
+
+  const deletePhoto = id => {
+    if (!confirm("Delete this photo?")) return;
+    fetch(`/photos/${id}`, { method: "DELETE" })
+      .then(() => setPhotos(p => p.filter(ph => ph.id !== id)))
+      .catch(console.error);
+  };
+
+  const uploadFiles = files => {
+    Array.from(files).forEach(file => {
+      const fd = new FormData();
+      fd.append("file", file);
+      if (title) fd.append("title", title);
+      fetch("/photos", { method: "POST", body: fd })
+        .then(refresh)
+        .catch(console.error);
+    });
+  };
+
+  const persistOrder = order => {
+    order.forEach((p, idx) => {
+      if (p.sort_order !== idx) {
+        fetch(`/photos/${p.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sort_order: idx })
+        }).catch(console.error);
+        p.sort_order = idx;   // optimistic update
+      }
+    });
+  };
+
+  /* ------------------------- bulk drag‑and‑drop ------------------------- */
+  const handleDrag = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
+  };
+
+  const handleDrop = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files);
+  };
+
+  const handleInputChange = e => {
+    if (e.target.files?.length) uploadFiles(e.target.files);
+    e.target.value = "";
+  };
+
+  /* -------------------- per‑photo drag‑to‑reorder ----------------------- */
+  const handleDragStartItem = idx => () => setDragIdx(idx);
+
+  const handleDragOverItem = idx => e => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    setPhotos(prev => {
+      const arr = [...prev];
+      const [moved] = arr.splice(dragIdx, 1);
+      arr.splice(idx, 0, moved);
+      return arr;
+    });
+    setDragIdx(idx);
+  };
+
+  const handleDragEndItem = () => {
+    setDragIdx(null);
+    setPhotos(curr => {
+      persistOrder(curr);
+      return curr;
+    });
+  };
+
+  /* ------------------------------ initial load -------------------------- */
+  useEffect(refresh, [refresh]);
+
+  /* ------------------------------ render -------------------------------- */
+  return (
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
+      <h1>Photo Management</h1>
+
+      {/* ---------- upload zone ------------------------------------------ */}
+      <section
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+        style={{
+          border: "2px dashed #aaa",
+          borderRadius: 8,
+          padding: "2rem",
+          textAlign: "center",
+          background: dragActive ? "#f6f8fa" : "transparent",
+          marginBottom: "2rem",
+          cursor: "pointer"
+        }}
+        onClick={() => document.getElementById("file-picker").click()}
+      >
+        <p style={{ margin: 0, fontSize: "1.1rem" }}>
+          Drag &amp; drop images here — or click to choose multiple
+        </p>
+        <input
+          id="file-picker"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleInputChange}
+          style={{ display: "none" }}
+        />
+        <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <input
+            type="text"
+            placeholder="Optional title (applied to each)"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+          />
+        </div>
+      </section>
+
+      {/* ---------- list -------------------------------------------------- */}
+      <h2>Existing Photos ({photos.length})</h2>
+      <p style={{ fontSize: ".85rem", marginTop: 0 }}>Tip: drag thumbnails to reorder</p>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+        gap: "1rem"
+      }}>
+        {photos.map((p, i) => (
+          <div
+            key={p.id}
+            draggable
+            onDragStart={handleDragStartItem(i)}
+            onDragOver={handleDragOverItem(i)}
+            onDragEnd={handleDragEndItem}
+            style={{
+              border: "1px solid #ddd",
+              padding: "0.5rem",
+              background: dragIdx === i ? "#f0f6ff" : "white",
+              cursor: "grab"
+            }}
+          >
+            <img
+              src={p.thumbnail_url || p.small_url || p.original_url}
+              alt={p.title || p.name}
+              style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
+            />
+            <div style={{ marginTop: "0.5rem", fontSize: ".85rem", lineHeight: 1.3 }}>
+              <strong>{p.title || p.name || "—"}</strong>
+            </div>
+            <button
+              onClick={() => deletePhoto(p.id)}
+              style={{ marginTop: "0.5rem", width: "100%" }}
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
 </file>
 
 <file path="site/src/utils.js">
@@ -655,35 +1288,6 @@ dist-ssr
 *.sw?
 </file>
 
-<file path="site/Dockerfile">
-# site/Dockerfile
-# ---------- build stage ----------
-FROM node:20-alpine AS build
-
-WORKDIR /app
-
-# copy just package.json so Docker can cache 'npm install'
-COPY package.json ./
-
-# install deps (will read package-lock.json if you add it later)
-RUN npm install --foreground-scripts
-
-# now bring in the rest of your source
-COPY . .
-
-# build into /app/dist
-RUN npm run build
-
-# ---------- production stage ----------
-FROM nginx:1.27-alpine
-
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-</file>
-
 <file path="site/eslint.config.js">
 import js from '@eslint/js'
 import globals from 'globals'
@@ -714,29 +1318,6 @@ export default defineConfig([
     },
   },
 ])
-</file>
-
-<file path="site/nginx.conf">
-server {
-    listen 80;
-    server_name _;
-
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # SPA routing
-    location / {
-        try_files $uri /index.html;
-    }
-
-    # API passthrough → FastAPI service
-    location /photos {
-        proxy_pass http://backend:8000$request_uri;
-    }
-    location /photos.json {
-        proxy_pass http://backend:8000/photos;
-    }
-}
 </file>
 
 <file path="site/package.json">
@@ -782,6 +1363,187 @@ Currently, two official plugins are available:
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+</file>
+
+<file path="site/vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+</file>
+
+<file path="backend/requirements.txt">
+fastapi
+uvicorn[standard]
+boto3
+python-dotenv
+SQLAlchemy
+databases[sqlite]
+</file>
+
+<file path="site/src/components/Photo.jsx">
+import React from "react";
+import { formatShutter, extractAperture } from "../utils";
+
+export default function Photo({ photo }) {
+  const {
+    title, name, camera, lens, shutter_speed,
+    iso, url, small_url, thumbnail_url,
+  } = photo;
+
+  const src      = small_url || thumbnail_url || url;
+  const shutter  = formatShutter(shutter_speed);
+  const aperture = extractAperture(lens);
+  const exposure = [shutter, aperture && `f/${aperture}`, iso && `ISO ${iso}`]
+                     .filter(Boolean).join(" | ");
+
+  return (
+    <div className="photo">
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <img
+          src={src}
+          alt={title || name || "Photo"}
+          loading="lazy"
+          decoding="async"
+        />
+      </a>
+      <div className="caption">
+        <span className="title">{title || name}</span><br />
+        <span className="meta">
+          {camera}<br />
+          {lens}<br />
+          {exposure}
+        </span>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="site/src/App.jsx">
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import Gallery from "./components/Gallery";
+import "./index.css";
+
+const BATCH = 10;
+
+export default function App() {
+  const [all,  setAll]  = useState([]);
+  const [show, setShow] = useState([]);
+  const next   = useRef(0);
+  const sent   = useRef(null);
+
+  // Fetch photos in the order provided by the API (sort_order → newest)
+  useEffect(() => {
+    fetch("/photos.json")
+      .then(r => r.json())
+      .then(d => setAll(Array.isArray(d) ? d : Object.values(d)))
+      .catch(console.error);
+  }, []);
+
+  const load = useCallback(() => {
+    if (next.current >= all.length) return;
+    setShow(v => {
+      const slice = all.slice(next.current, next.current + BATCH);
+      next.current += slice.length;
+      return [...v, ...slice];
+    });
+  }, [all]);
+
+  useEffect(() => {
+    if (!all.length) return;
+    load();
+
+    const ob = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          load();
+          if (next.current >= all.length && sent.current) ob.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    if (sent.current) ob.observe(sent.current);
+    return () => ob.disconnect();
+  }, [all, load]);
+
+  return (
+    <>
+      <h1>Photo Gallery</h1>
+      <Gallery items={show} />
+      <div id="sentinel" ref={sent} style={{ height: 1 }} />
+    </>
+  );
+}
+</file>
+
+<file path="site/src/main.jsx">
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App        from "./App";
+import Management from "./Management";
+
+const Root = window.location.pathname.startsWith("/manage") ? Management : App;
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode><Root /></React.StrictMode>
+);
+</file>
+
+<file path="site/Dockerfile">
+# site/Dockerfile
+# ---------- build stage ----------
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# copy just package.json so Docker can cache 'npm install'
+COPY package.json ./
+
+# install deps (will read package-lock.json if you add it later)
+RUN npm install --foreground-scripts
+
+# now bring in the rest of your source
+COPY . .
+
+# build into /app/dist
+RUN npm run build
+
+# ---------- production stage ----------
+FROM nginx:1.27-alpine
+
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+</file>
+
+<file path="site/nginx.conf">
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 30M;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA routing
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # API passthrough → FastAPI service
+    location /photos {
+        proxy_pass http://backend:8000$request_uri;
+    }
+    location /photos.json {
+        proxy_pass http://backend:8000/photos;
+    }
+}
 </file>
 
 <file path="site/repomix-output.xml">
@@ -838,10 +1600,13 @@ src/
   App.jsx
   index.css
   main.jsx
+  Management.jsx
   utils.js
 .gitignore
+Dockerfile
 eslint.config.js
 index.html
+nginx.conf
 package.json
 README.md
 vite.config.js
@@ -876,8 +1641,10 @@ import React from "react";
 import { formatShutter, extractAperture } from "../utils";
 
 export default function Photo({ photo }) {
-  const { title, name, camera, lens, shutter_speed, iso, rating,
-          url, small_url, thumbnail_url } = photo;
+  const {
+    title, name, camera, lens, shutter_speed,
+    iso, rating, url, small_url, thumbnail_url,
+  } = photo;
 
   const src      = small_url || thumbnail_url || url;
   const shutter  = formatShutter(shutter_speed);
@@ -888,7 +1655,12 @@ export default function Photo({ photo }) {
   return (
     <div className="photo">
       <a href={url} target="_blank" rel="noopener noreferrer">
-        <img src={src} alt={title || name || ""} loading="lazy" decoding="async" />
+        <img
+          src={src}
+          alt={title || name || "Photo"}
+          loading="lazy"
+          decoding="async"
+        />
       </a>
       <div className="caption">
         <span className="title">{title || name}</span><br />
@@ -911,11 +1683,12 @@ import "./index.css";
 const BATCH = 10;
 
 export default function App() {
-  const [all, setAll]   = useState([]);
+  const [all,  setAll]  = useState([]);
   const [show, setShow] = useState([]);
-  const next = useRef(0);
-  const sent = useRef(null);
+  const next   = useRef(0);
+  const sent   = useRef(null);
 
+  // Fetch & sort photos
   useEffect(() => {
     fetch("/photos.json")
       .then(r => r.json())
@@ -927,7 +1700,9 @@ export default function App() {
       .catch(console.error);
   }, []);
 
+  // Load helper
   const load = useCallback(() => {
+    if (next.current >= all.length) return;         // nothing left
     setShow(v => {
       const slice = all.slice(next.current, next.current + BATCH);
       next.current += slice.length;
@@ -935,14 +1710,24 @@ export default function App() {
     });
   }, [all]);
 
+  // Infinite scroll
   useEffect(() => {
     if (!all.length) return;
-    load();                                    // first batch
+    load();                                         // first batch
+
     const ob = new IntersectionObserver(
-      ([e]) => e.isIntersecting && load(),
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          load();
+          if (next.current >= all.length && sent.current) {
+            ob.disconnect();                       // stop once done
+          }
+        }
+      },
       { rootMargin: "200px" }
     );
-    sent.current && ob.observe(sent.current);
+
+    if (sent.current) ob.observe(sent.current);
     return () => ob.disconnect();
   }, [all, load]);
 
@@ -972,21 +1757,195 @@ h1   { margin: 1.5rem 0; text-align: center; }
 <file path="src/main.jsx">
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import App        from "./App";
+import Management from "./Management";
+
+const Root = window.location.pathname.startsWith("/manage") ? Management : App;
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode><App /></React.StrictMode>
+  <React.StrictMode><Root /></React.StrictMode>
 );
 </file>
 
+<file path="src/Management.jsx">
+import React, { useEffect, useState, useCallback } from "react";
+
+export default function Management() {
+  const [photos, setPhotos] = useState([]);
+  const [title, setTitle] = useState("");
+  const [rating, setRating] = useState("");
+  const [dragActive, setDragActive] = useState(false);
+
+  /* -------------------------------- helpers ------------------------------ */
+  const refresh = useCallback(() => {
+    fetch("/photos")
+      .then(r => r.json())
+      .then(setPhotos)
+      .catch(console.error);
+  }, []);
+
+  const deletePhoto = id => {
+    if (!confirm("Delete this photo?")) return;
+    fetch(`/photos/${id}`, { method: "DELETE" })
+      .then(() => setPhotos(p => p.filter(ph => ph.id !== id)))
+      .catch(console.error);
+  };
+
+  const uploadFiles = files => {
+    Array.from(files).forEach(file => {
+      const fd = new FormData();
+      fd.append("file", file);
+      if (title)  fd.append("title",  title);
+      if (rating) fd.append("rating", rating);
+      fetch("/photos", { method: "POST", body: fd })
+        .then(refresh)
+        .catch(console.error);
+    });
+  };
+
+  /* ------------------------------ drag ‘n’ drop -------------------------- */
+  const handleDrag = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
+  };
+
+  const handleDrop = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files);
+  };
+
+  const handleInputChange = e => {
+    if (e.target.files?.length) uploadFiles(e.target.files);
+    e.target.value = "";                       // reset so same files can be re‑selected
+  };
+
+  /* -------------------------------- first load --------------------------- */
+  useEffect(refresh, [refresh]);
+
+  /* -------------------------------- render ------------------------------- */
+  return (
+    <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
+      <h1>Photo Management</h1>
+
+      {/* ----- bulk‑upload zone ------------------------------------------- */}
+      <section
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+        style={{
+          border: "2px dashed #aaa",
+          borderRadius: 8,
+          padding: "2rem",
+          textAlign: "center",
+          background: dragActive ? "#f6f8fa" : "transparent",
+          marginBottom: "2rem",
+          cursor: "pointer"
+        }}
+        onClick={() => document.getElementById("file-picker").click()}
+      >
+        <p style={{ margin: 0, fontSize: "1.1rem" }}>
+          Drag &amp; drop images here&nbsp;— or click to choose multiple
+        </p>
+        <input
+          id="file-picker"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleInputChange}
+          style={{ display: "none" }}
+        />
+        <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <input
+            type="text"
+            placeholder="Optional title (applied to each)"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="Rating"
+            value={rating}
+            onChange={e => setRating(e.target.value)}
+            style={{ width: 100 }}
+          />
+        </div>
+      </section>
+
+      {/* ----- list -------------------------------------------------------- */}
+      <h2>Existing Photos ({photos.length})</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "1rem" }}>
+        {photos.map(p => (
+          <div key={p.id} style={{ border: "1px solid #ddd", padding: "0.5rem" }}>
+            <img
+              src={p.thumbnail_url || p.small_url || p.original_url}
+              alt={p.title || p.name}
+              style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
+            />
+            <div style={{ marginTop: "0.5rem", fontSize: ".85rem", lineHeight: 1.3 }}>
+              <strong>{p.title || p.name || "—"}</strong><br />
+              ★ {p.rating ?? "—"}
+            </div>
+            <button onClick={() => deletePhoto(p.id)} style={{ marginTop: "0.5rem", width: "100%" }}>
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+</file>
+
 <file path="src/utils.js">
+// Format shutter speeds supplied as numbers *or* fractions, e.g. "1/250"
+
+/**
+ * Compute a SHA‑1 hex digest in **both** browsers and Node.
+ * @param {string|Uint8Array} input
+ * @returns {Promise<string>} 40‑char hex string
+ */
+export async function sha1Hex(input) {
+  const data = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+
+  if (globalThis.crypto?.subtle?.digest) {
+    const buf = await crypto.subtle.digest('SHA-1', data);
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Node path — built‑in ‘crypto’ module
+  const { createHash } = await import('crypto');
+  return createHash('sha1').update(data).digest('hex');
+}
+
 export function formatShutter(s) {
-  const v = parseFloat(s);
+  if (s == null) return "";
+
+  let v;
+
+  if (typeof s === "number") {
+    v = s;
+  } else {
+    const str = String(s).trim();
+    if (str.includes("/")) {
+      const [num, den] = str.split("/").map(Number);
+      if (num && den) v = num / den;
+    } else {
+      v = parseFloat(str);
+    }
+  }
+
   if (!v) return "";
   return v >= 1 ? `${v}s` : `1/${Math.round(1 / v)}s`;
 }
+
+// Extract aperture from "f/2.8", "F2.8", etc.
 export function extractAperture(lens = "") {
-  const m = lens.match(/F(\d+\.?\d*)/i);
+  const m = lens.match(/f\/?(\d+(\.\d+)?)/i);
   return m ? m[1] : "";
 }
 </file>
@@ -1016,6 +1975,35 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+</file>
+
+<file path="Dockerfile">
+# site/Dockerfile
+# ---------- build stage ----------
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# copy just package.json so Docker can cache 'npm install'
+COPY package.json ./
+
+# install deps (will read package-lock.json if you add it later)
+RUN npm install --foreground-scripts
+
+# now bring in the rest of your source
+COPY . .
+
+# build into /app/dist
+RUN npm run build
+
+# ---------- production stage ----------
+FROM nginx:1.27-alpine
+
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 </file>
 
 <file path="eslint.config.js">
@@ -1064,6 +2052,29 @@ export default defineConfig([
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+</file>
+
+<file path="nginx.conf">
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 30M;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA routing
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # API passthrough → FastAPI service
+    location /photos {
+        proxy_pass http://backend:8000$request_uri;
+    }
+    location /photos.json {
+        proxy_pass http://backend:8000/photos;
+    }
+}
 </file>
 
 <file path="package.json">
@@ -1124,50 +2135,6 @@ export default defineConfig({
 </files>
 </file>
 
-<file path="site/vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
-</file>
-
-<file path="docker-compose.yml">
-version: "3.9"
-
-services:
-  backend:
-    build: ./backend
-    env_file:
-      - .env
-    # point to your own values or copy this block to a local “.env” file
-    environment:
-      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-us‑east‑1}"
-      S3_BUCKET:          "${S3_BUCKET}"
-      AWS_ACCESS_KEY_ID:  "${AWS_ACCESS_KEY_ID}"
-      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
-      DATABASE_URL:       "${DATABASE_URL:-sqlite:///data/photos.db}"
-      LOG_LEVEL:          "${LOG_LEVEL:-INFO}"
-    volumes:
-      - db_data:/data                    # keeps the SQLite file persistent
-    ports:
-      - "8000:8000"                      # http://localhost:8000
-    restart: unless-stopped
-
-  frontend:
-    build: ./site
-    ports:
-      - "3000:80"                        # http://localhost:3000
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-volumes:
-  db_data:
-</file>
-
 <file path=".gitignore">
 # This .gitignore is appropriate for repositories deployed to GitHub Pages and using
 # a Gemfile as specified at https://github.com/github/pages-gem#conventional
@@ -1191,6 +2158,42 @@ Gemfile.lock
 .env
 .idea
 photos
+</file>
+
+<file path="docker-compose.yml">
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-us-east-1}"
+      S3_BUCKET: "${S3_BUCKET}"
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      DATABASE_URL: "${DATABASE_URL:-sqlite:///data/photos.db}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    volumes:
+      - db_data:/data                    # keeps the SQLite file persistent
+    ports:
+      - "8000:8000"                      # http://localhost:8000
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  frontend:
+    build: ./site
+    ports:
+      - "3000:80"                        # http://localhost:3000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db_data:
 </file>
 
 <file path="site/index.html">
