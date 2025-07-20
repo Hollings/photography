@@ -1,46 +1,27 @@
-// Format shutter speeds supplied as numbers *or* fractions, e.g. "1/250"
+/**
+ * Extract the numeric aperture (e.g. “1.8”) from a lens description string.
+ * Returns an empty string if no aperture is found or the input is not a string.
+ */
+export function extractAperture(lens) {
+  if (typeof lens !== "string") return "";
+  const match = lens.match(/f\/?(\d+(?:\.\d+)?)/i);
+  return match ? match[1] : "";
+}
 
 /**
- * Compute a SHA‑1 hex digest in **both** browsers and Node.
- * @param {string|Uint8Array} input
- * @returns {Promise<string>} 40‑char hex string
+ * Format a shutter speed expressed in fractional seconds
+ * (e.g. "1/2000") into a user‑friendly string.
  */
-export async function sha1Hex(input) {
-  const data = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+export function formatShutter(shutter) {
+  if (!shutter) return "";
+  // already in a fractional form – just return
+  if (shutter.includes("/")) return shutter;
 
-  if (globalThis.crypto?.subtle?.digest) {
-    const buf = await crypto.subtle.digest('SHA-1', data);
-    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-  }
+  // handle decimal seconds (e.g. "0.005")
+  const value = parseFloat(shutter);
+  if (Number.isNaN(value) || value <= 0) return "";
 
-  // Node path — built‑in ‘crypto’ module
-  const { createHash } = await import('crypto');
-  return createHash('sha1').update(data).digest('hex');
-}
-
-export function formatShutter(s) {
-  if (s == null) return "";
-
-  let v;
-
-  if (typeof s === "number") {
-    v = s;
-  } else {
-    const str = String(s).trim();
-    if (str.includes("/")) {
-      const [num, den] = str.split("/").map(Number);
-      if (num && den) v = num / den;
-    } else {
-      v = parseFloat(str);
-    }
-  }
-
-  if (!v) return "";
-  return v >= 1 ? `${v}s` : `1/${Math.round(1 / v)}s`;
-}
-
-// Extract aperture from "f/2.8", "F2.8", etc.
-export function extractAperture(lens = "") {
-  const m = lens.match(/f\/?(\d+(\.\d+)?)/i);
-  return m ? m[1] : "";
+  return value >= 1
+    ? `${value.toFixed(1)} s`
+    : `1/${Math.round(1 / value)}`;
 }

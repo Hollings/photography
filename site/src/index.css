@@ -1,10 +1,14 @@
 body { font-family: system-ui, sans-serif; margin: 0; }
 h1   { margin: 1.5rem 0; text-align: center; }
 
-.gallery      { display: flex; flex-direction: column; gap: 2rem; width: 100%; }
-.photo a      { display: block; }
-.photo img    { display: block; width: 100%; height: auto; max-height: 100vh; object-fit: contain; }
+.gallery         { display: flex; flex-direction: column; gap: 2rem; width: 100%; }
 
-.caption      { margin-top: 0.5rem; line-height: 1.3; text-align: center; }
-.caption .title { font-size: .95rem; font-weight: 600; color: #333; }
-.caption .meta  { font-size: .8rem;  color: #666; }
+/* limit every card (image + caption) to the viewport height */
+.photo-card      { display: flex; flex-direction: column; max-height: 100vh; }
+.photo-card img  { flex: 1 1 auto; width: 100%; height: auto; object-fit: contain; }
+
+/* centred, lighter‑grey caption */
+.caption         { margin-top: .5rem; line-height: 1.3; text-align: center; color: #666; }
+.caption .title  { display: block; font-size: .95rem; font-weight: 600; color: #444; }
+.caption .meta,
+.caption .date   { font-size: .8rem; }

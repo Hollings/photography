@@ -23,5 +23,7 @@ class VariantBuilder:
             save_kwargs: dict[str, Any] = {}
             if img.format == "JPEG":
                 save_kwargs.update({"quality": 85, "optimize": True})
-            img.save(out_path, **save_kwargs)
+            exif_bytes = img.info.get("exif")
+
+            img.save(out_path,exif=exif_bytes, **save_kwargs)
         return out_path

@@ -6,3 +6,5 @@ SQLAlchemy
 databases[sqlite]
 pillow              # PIL.Image used in utils/*
 python-multipart    # required for UploadFile in FastAPI
+exifread
+pillow-heif

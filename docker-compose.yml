@@ -12,13 +12,28 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
 
-  frontend:
-    build: ./site
+  # production SPA (unchanged)
+#  frontend:
+#    build: ./site
+#    ports:
+#      - "3000:80"
+#    depends_on:
+#      - backend
+#    restart: unless-stopped
+
+  # NEW: hot‑reloading dev server
+  frontend-dev:
+    build:
+      context: ./site
+      dockerfile: Dockerfile
+      target: build          # installs node_modules but skips the static build
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    volumes:
+      - ./site:/app          # live mount source code
+      - /app/node_modules    # keep deps inside container
     ports:
-      - "3000:80"
+      - "5173:5173"
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
     depends_on:
       - backend
-    restart: unless-stopped
-
-volumes:
-  db_data:
