@@ -7,6 +7,7 @@ const BATCH = 10;
 export default function App() {
   const [all,  setAll]  = useState([]);
   const [show, setShow] = useState([]);
+  const [layout, setLayout] = useState(() => localStorage.getItem("cee_layout") || "grid");
   const next   = useRef(0);
   const sent   = useRef(null);
 
@@ -52,7 +53,22 @@ export default function App() {
 
   return (
     <>
-      <Gallery items={show} />
+      <div className="toolbar">
+        <div className="toggle" role="tablist" aria-label="View layout">
+          <button
+            className={layout === "grid" ? "active" : ""}
+            onClick={() => { setLayout("grid"); localStorage.setItem("cee_layout", "grid"); }}
+            role="tab" aria-selected={layout === "grid"}
+          >Grid</button>
+          <button
+            className={layout === "single" ? "active" : ""}
+            onClick={() => { setLayout("single"); localStorage.setItem("cee_layout", "single"); }}
+            role="tab" aria-selected={layout === "single"}
+          >Single</button>
+        </div>
+      </div>
+
+      <Gallery items={show} layout={layout} />
       <div ref={sent} style={{ height: 1 }} />
     </>
   );

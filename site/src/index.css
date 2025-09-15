@@ -1,15 +1,26 @@
 body { font-family: system-ui, sans-serif; margin: 0; background-color: #f8f8f8 }
 h1   { margin: 1.5rem 0; text-align: center; }
 
-/* Responsive card grid */
-.gallery {
+/* Base gallery wrapper */
+.gallery { width: 100%; box-sizing: border-box; }
+
+/* Responsive grid layout */
+.gallery.layout-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.5rem;
-  width: 100%;
   align-items: start;
   padding: 0 1rem 2rem;
-  box-sizing: border-box;
+}
+
+/* Single-column layout */
+.gallery.layout-single {
+  display: block;
+  padding: 0 0 2rem;
+}
+.gallery.layout-single .photo-card {
+  max-width: min(1100px, 100%);
+  margin: 0 auto 1.5rem;
 }
 
 /* Card: image on top, caption below */
@@ -34,3 +45,29 @@ h1   { margin: 1.5rem 0; text-align: center; }
 .caption        { padding: .75rem .9rem; line-height: 1.35; color: #666; text-align: left; }
 .caption .title { display: block; font-size: .95rem; font-weight: 600; color: #333; margin-bottom: .25rem; }
 .caption .meta, .caption .date { font-size: .82rem; }
+
+/* Toolbar */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f8f8f8;
+  padding: .5rem 1rem;
+  display: flex;
+  justify-content: center;
+}
+.toggle {
+  display: inline-flex;
+  border: 1px solid #ddd;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.toggle button {
+  appearance: none;
+  border: 0;
+  padding: .4rem .9rem;
+  background: transparent;
+  color: #444;
+  cursor: pointer;
+}
+.toggle button.active { background: #fff; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }

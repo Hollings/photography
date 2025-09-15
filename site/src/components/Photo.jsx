@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { extractAperture, formatShutter, viaCee } from "../utils";
 
-export default function Photo({ photo, size = "small" }) {
+export default function Photo({ photo, size = "small", layout = "grid" }) {
   console.log("PHOTO")
   const {
     name,
@@ -34,8 +34,10 @@ const srcSet = [
   medium && `${medium} 2560w`,
 ].filter(Boolean).join(", ");
 
-// Conservative sizes: single-column on mobile, multi-column on larger screens
-const sizes = "(max-width: 600px) 100vw, (max-width: 1200px) 50vw, 33vw";
+// sizes hint: single column uses full viewport width; grid uses fractions
+const sizes = layout === "single"
+  ? "100vw"
+  : "(max-width: 600px) 100vw, (max-width: 1200px) 50vw, 33vw";
 
 
   // derived metadata
@@ -97,4 +99,5 @@ Photo.propTypes = {
     created_at:    PropTypes.string,
   }).isRequired,
   size: PropTypes.oneOf(["thumbnail", "small", "full"]),
+  layout: PropTypes.oneOf(["grid", "single"]),
 };
