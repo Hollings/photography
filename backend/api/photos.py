@@ -52,9 +52,9 @@ def upload_photo(
             for chunk in iter(lambda: file.file.read(8192), b""):
                 fh.write(chunk)
 
-    sha1  = file_sha1(original)
-    size  = original.stat().st_size
-    exif  = extract_exif(original)
+        sha1  = file_sha1(original)
+        size  = original.stat().st_size
+        exif  = extract_exif(original)
         print("DEBUG EXIF:", exif)
         if title is not None:
             exif["title"] = title
