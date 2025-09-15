@@ -171,20 +171,27 @@ jobs:
           set -euo pipefail
           BUCKET=${ASSETS_BUCKET}
           REGION=${AWS_REGION}
-          BK=${{ steps.s3.outputs.backend_key }}
-          SK=${{ steps.s3.outputs.frontend_key }}
-          UK=${{ steps.s3.outputs.unit_key }}
-          NK=${{ steps.s3.outputs.nginx_key }}
-          # Build parameters JSON to avoid shell/JSON quoting issues
-          cat > ssm-params.json <<JSON
-          {"commands": [
+          export BK=${{ steps.s3.outputs.backend_key }}
+          export SK=${{ steps.s3.outputs.frontend_key }}
+          export UK=${{ steps.s3.outputs.unit_key }}
+          export NK=${{ steps.s3.outputs.nginx_key }}
+          # Build parameters JSON via Python so $ENV remains literal for remote shell
+          python3 - <<'PY'
+          import json, os
+          BUCKET = os.environ['ASSETS_BUCKET']
+          REGION = os.environ['AWS_REGION']
+          BK = os.environ['BACKEND_KEY'] if 'BACKEND_KEY' in os.environ else os.environ.get('BK', '')
+          SK = os.environ['FRONTEND_KEY'] if 'FRONTEND_KEY' in os.environ else os.environ.get('SK', '')
+          UK = os.environ['CONFIG_UNIT_KEY'] if 'CONFIG_UNIT_KEY' in os.environ else os.environ.get('UK', '')
+          NK = os.environ['CONFIG_NGX_KEY'] if 'CONFIG_NGX_KEY' in os.environ else os.environ.get('NK', '')
+          cmds = [
             "set -euo pipefail",
             "sudo dnf -y install awscli jq || true",
             "cd /home/ec2-user",
-            "aws s3 cp s3://${BUCKET}/${BK} /tmp/backend.tar.gz",
-            "aws s3 cp s3://${BUCKET}/${SK} /tmp/site-dist.tar.gz",
-            "aws s3 cp s3://${BUCKET}/${UK} /tmp/cee-api.service",
-            "aws s3 cp s3://${BUCKET}/${NK} /tmp/cee-nginx.conf",
+            f"aws s3 cp s3://{BUCKET}/{BK} /tmp/backend.tar.gz",
+            f"aws s3 cp s3://{BUCKET}/{SK} /tmp/site-dist.tar.gz",
+            f"aws s3 cp s3://{BUCKET}/{UK} /tmp/cee-api.service",
+            f"aws s3 cp s3://{BUCKET}/{NK} /tmp/cee-nginx.conf",
             "sudo mkdir -p /srv/cee/app /srv/cee/data /var/www/cee/site",
             "if [ ! -d /srv/cee/venv ]; then sudo python3 -m venv /srv/cee/venv; fi",
             "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
@@ -196,17 +203,20 @@ jobs:
             "# Ensure env defaults exist",
             "ENV=/srv/cee/.env; sudo touch $ENV; sudo chown ec2-user:nginx $ENV",
             "grep -q '^DATABASE_URL=' $ENV || echo DATABASE_URL=sqlite:////srv/cee/data/photos.db | sudo tee -a $ENV >/dev/null",
-            "grep -q '^AWS_DEFAULT_REGION=' $ENV || echo AWS_DEFAULT_REGION=${REGION} | sudo tee -a $ENV >/dev/null",
-            "grep -q '^S3_BUCKET=' $ENV || echo S3_BUCKET=${BUCKET} | sudo tee -a $ENV >/dev/null",
+            f"grep -q '^AWS_DEFAULT_REGION=' $ENV || echo AWS_DEFAULT_REGION={REGION} | sudo tee -a $ENV >/dev/null",
+            f"grep -q '^S3_BUCKET=' $ENV || echo S3_BUCKET={BUCKET} | sudo tee -a $ENV >/dev/null",
             "sudo systemctl daemon-reload",
             "sudo systemctl enable cee-api.service",
             "sudo systemctl restart cee-api.service",
             "sudo tar -xzf /tmp/site-dist.tar.gz -C /var/www/cee/site",
             "sudo chown -R ec2-user:nginx /var/www/cee/site",
             "sudo nginx -t",
-            "sudo systemctl reload nginx || sudo systemctl restart nginx"
-          ]}
-          JSON
+            "sudo systemctl reload nginx || sudo systemctl restart nginx",
+          ]
+          with open('ssm-params.json','w') as f:
+            json.dump({"commands": cmds}, f)
+          print('Wrote ssm-params.json with', len(cmds), 'commands')
+          PY
           CMD_ID=$(aws ssm send-command \
             --instance-ids "$IID" \
             --document-name "AWS-RunShellScript" \
