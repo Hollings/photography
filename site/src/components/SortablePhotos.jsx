@@ -5,7 +5,7 @@ import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@d
 import { CSS } from "@dnd-kit/utilities";
 import { viaCee } from "../utils";
 
-function SortableCard({ item, onSaveTitle, onDelete }) {
+function SortableCard({ item, onSaveTitle, onDelete, onPublish, onUnpublish }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -46,10 +46,21 @@ function SortableCard({ item, onSaveTitle, onDelete }) {
             placeholder="Optional display title"
           />
         </label>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={() => onSaveTitle(item.id, item._title ?? item.title ?? "", true)} style={{ flex: "0 0 auto" }}>Save</button>
           <div style={{ flex: 1 }} />
           <button onClick={() => onDelete(item.id)} style={{ flex: "0 0 auto" }}>Delete</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+          <span style={{ color: "#666" }}>
+            {item.posted_at ? `Published ${new Date(item.posted_at).toLocaleString()}` : 'Not published'}
+          </span>
+          <div style={{ flex: 1 }} />
+          {item.posted_at ? (
+            <button onClick={() => onUnpublish(item.id)}>Unpublish</button>
+          ) : (
+            <button onClick={() => onPublish(item.id)}>Publish</button>
+          )}
         </div>
       </div>
     </div>
@@ -60,9 +71,11 @@ SortableCard.propTypes = {
   item: PropTypes.object.isRequired,
   onSaveTitle: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  onPublish: PropTypes.func.isRequired,
+  onUnpublish: PropTypes.func.isRequired,
 };
 
-export default function SortablePhotos({ items, setItems, persistOrder, onDelete, onSaveTitle }) {
+export default function SortablePhotos({ items, setItems, persistOrder, onDelete, onSaveTitle, onPublish, onUnpublish }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const ids = useMemo(() => items.map(i => i.id), [items]);
   const [activeId, setActiveId] = useState(null);
@@ -93,7 +106,7 @@ export default function SortablePhotos({ items, setItems, persistOrder, onDelete
           gap: "1rem",
         }}>
           {items.map(item => (
-            <SortableCard key={item.id} item={item} onSaveTitle={onSaveTitle} onDelete={onDelete} />
+            <SortableCard key={item.id} item={item} onSaveTitle={onSaveTitle} onDelete={onDelete} onPublish={onPublish} onUnpublish={onUnpublish} />
           ))}
         </div>
       </SortableContext>
@@ -107,5 +120,6 @@ SortablePhotos.propTypes = {
   persistOrder: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
   onSaveTitle: PropTypes.func.isRequired,
+  onPublish: PropTypes.func.isRequired,
+  onUnpublish: PropTypes.func.isRequired,
 };
-

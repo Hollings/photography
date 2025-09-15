@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from deps import get_db
 from models import Photo
-from schemas import PhotoOut, PhotoUpdate
+from schemas import PhotoOut, PhotoUpdate, PhotoPublish
 from utils.exif import extract_exif
 from utils.hashing import file_sha1
 from utils.image_variants import VariantBuilder
@@ -35,6 +35,13 @@ def list_photos(db: Session = Depends(get_db)):
           .order_by(Photo.sort_order.asc(), Photo.id.desc())
           .all()
     )
+
+@router.get("/photos/{photo_id}", response_model=PhotoOut)
+def get_photo(photo_id: int, db: Session = Depends(get_db)):
+    photo = db.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return photo
 
 @router.post("/photos", response_model=PhotoOut, status_code=201)
 def upload_photo(
@@ -177,3 +184,27 @@ def delete_photo(photo_id: int, db: Session = Depends(get_db)):
 
     db.delete(photo)
     return {}
+
+
+@router.post("/photos/{photo_id}/publish", response_model=PhotoOut)
+def publish_photo(photo_id: int, payload: PhotoPublish, db: Session = Depends(get_db)):
+    photo = db.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    when = payload.posted_at or datetime.utcnow()
+    photo.posted_at    = when
+    photo.post_title   = payload.post_title or photo.title
+    photo.post_summary = payload.post_summary
+    db.add(photo)
+    return photo
+
+
+@router.post("/photos/{photo_id}/unpublish", response_model=PhotoOut)
+def unpublish_photo(photo_id: int, db: Session = Depends(get_db)):
+    photo = db.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    photo.posted_at    = None
+    # keep post_title/summary for convenience; they can be edited on next publish
+    db.add(photo)
+    return photo

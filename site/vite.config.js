@@ -22,6 +22,10 @@ export default defineConfig({
         target: backend,
         changeOrigin: true,
       },
+      "/feed.xml": {
+        target: backend,
+        changeOrigin: true,
+      },
     },
   },
 });

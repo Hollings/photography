@@ -24,6 +24,20 @@ export default function Management() {
       .catch(console.error);
   };
 
+  const publishPhoto = (id) => {
+    fetch(`/photos/${id}/publish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`Publish failed: ${r.status}`)))
+      .then(updated => setPhotos(prev => prev.map(x => x.id === id ? updated : x)))
+      .catch(err => alert(err.message));
+  };
+
+  const unpublishPhoto = (id) => {
+    fetch(`/photos/${id}/unpublish`, { method: "POST" })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`Unpublish failed: ${r.status}`)))
+      .then(updated => setPhotos(prev => prev.map(x => x.id === id ? updated : x)))
+      .catch(err => alert(err.message));
+  };
+
   const saveEdits = (p) => {
     const nextTitle = (p._title ?? p.title ?? "").trim();
     if (nextTitle === (p.title ?? "")) return;
@@ -249,6 +263,8 @@ export default function Management() {
         setItems={setPhotos}
         persistOrder={persistOrder}
         onDelete={deletePhoto}
+        onPublish={publishPhoto}
+        onUnpublish={unpublishPhoto}
         onSaveTitle={(id, value, commit) => {
           setPhotos(prev => prev.map(x => x.id === id ? { ...x, _title: value } : x));
           if (commit) {

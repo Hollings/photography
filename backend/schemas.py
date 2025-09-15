@@ -22,6 +22,10 @@ class PhotoOut(BaseModel):
     # Prefer EXIF capture time when available
     taken_at:      Optional[datetime] = None
     created_at:    datetime
+    # Feed/publication metadata
+    posted_at:     Optional[datetime] = None
+    post_title:    Optional[str] = None
+    post_summary:  Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -31,3 +35,9 @@ class PhotoUpdate(BaseModel):
     title:      Optional[str] = None
     name:       Optional[str] = None
     sort_order: Optional[int] = None
+
+
+class PhotoPublish(BaseModel):
+    post_title:   Optional[str] = None
+    post_summary: Optional[str] = None
+    posted_at:    Optional[datetime] = None  # if omitted, server uses now()
