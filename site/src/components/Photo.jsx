@@ -58,8 +58,6 @@ const sizes = "(max-width: 600px) 100vw, (max-width: 1200px) 50vw, 33vw";
           sizes={srcSet ? sizes : undefined}
           alt={title ?? name}
           loading="lazy"
-          width="100%"
-          height="auto"
         />
       </a>
 

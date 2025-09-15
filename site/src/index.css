@@ -1,14 +1,36 @@
-body { font-family: system-ui, sans-serif; margin: 0;background-color: #f8f8f8 }
+body { font-family: system-ui, sans-serif; margin: 0; background-color: #f8f8f8 }
 h1   { margin: 1.5rem 0; text-align: center; }
 
-.gallery         { display: flex; flex-direction: column; gap: 2rem; width: 100%; }
+/* Responsive card grid */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  align-items: start;
+  padding: 0 1rem 2rem;
+  box-sizing: border-box;
+}
 
-/* limit every card (image + caption) to the viewport height */
-.photo-card      { display: flex; flex-direction: column; max-height: 100vh; }
-.photo-card img  { flex: 1 1 auto; width: 90%; height: auto; object-fit: contain;border:40px solid white;margin:0 auto }
+/* Card: image on top, caption below */
+.photo-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  margin: 0;
+  overflow: hidden;
+}
+.photo-card a { display: block; line-height: 0; }
+.photo-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
 
-/* centred, lighter‑grey caption */
-.caption         { margin-top: .5rem; line-height: 1.3; text-align: center; color: #999; }
-.caption .title  { display: block; font-size: .95rem; font-weight: 600; color: #555; }
-.caption .meta,
-.caption .date   { font-size: .8rem; }
+/* Caption */
+.caption        { padding: .75rem .9rem; line-height: 1.35; color: #666; text-align: left; }
+.caption .title { display: block; font-size: .95rem; font-weight: 600; color: #333; margin-bottom: .25rem; }
+.caption .meta, .caption .date { font-size: .82rem; }
