@@ -33,6 +33,8 @@ export function formatShutter(shutter) {
  */
 export function viaCee(url) {
   if (!url) return url;
+  const isDev = typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+  if (isDev) return url; // keep absolute S3 URLs during local dev
   try {
     const u = new URL(url);
     if (u.hostname.includes("amazonaws.com")) {
