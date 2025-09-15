@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { extractAperture, formatShutter } from "../utils";
+import { extractAperture, formatShutter, viaCee } from "../utils";
 
 export default function Photo({ photo, size = "small" }) {
   console.log("PHOTO")
@@ -18,13 +18,14 @@ export default function Photo({ photo, size = "small" }) {
     created_at,
   } = photo;
 
-// pick the correct image size
-const src =
+// pick the correct image size, proxied through cee.photography
+const src = viaCee(
   size === "full"
     ? original_url
     : size === "thumbnail"
     ? (thumbnail_url || small_url || original_url)
-    : (small_url   || thumbnail_url || original_url); // added fall‑backs
+    : (small_url   || thumbnail_url || original_url)
+);
 
 
   // derived metadata

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { viaCee } from "./utils";
 
 export default function Management() {
   const [photos, setPhotos] = useState([]);
@@ -157,7 +158,7 @@ export default function Management() {
             }}
           >
             <img
-              src={p.thumbnail_url || p.small_url || p.original_url}
+              src={viaCee(p.thumbnail_url || p.small_url || p.original_url)}
               alt={p.title || p.name}
               style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
             />

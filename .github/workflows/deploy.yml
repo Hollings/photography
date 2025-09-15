@@ -114,6 +114,15 @@ jobs:
             # Backend routes
             location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
             location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+            # Proxied images from S3 via this domain
+            location ^~ /images/ {
+              proxy_set_header Host S3_HOST;
+              proxy_http_version 1.1;
+              proxy_set_header Connection "";
+              proxy_read_timeout 300s;
+              # Map /images/<key> -> https://S3_HOST/<key>
+              proxy_pass https://S3_HOST/;
+            }
             ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
             ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
             add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
@@ -122,6 +131,7 @@ jobs:
           CONF
           sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx.conf
           sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx.conf
+          sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx.conf
 
       - name: Upload deploy artifacts to S3
         id: s3

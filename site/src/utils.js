@@ -25,3 +25,23 @@ export function formatShutter(shutter) {
     ? `${value.toFixed(1)} s`
     : `1/${Math.round(1 / value)}`;
 }
+
+/**
+ * Map an S3 URL to a proxied path on this domain.
+ * If the URL looks like an AWS S3 URL, return "/images/<key>".
+ * Otherwise return the URL unchanged.
+ */
+export function viaCee(url) {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("amazonaws.com")) {
+      // Keep the path as-is; Nginx will strip the /images/ prefix and proxy to S3
+      return `/images${u.pathname}`;
+    }
+    return url;
+  } catch (_) {
+    // not an absolute URL – return as-is
+    return url;
+  }
+}
