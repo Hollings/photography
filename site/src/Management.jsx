@@ -299,53 +299,88 @@ export default function Management() {
       {/* ---------- list -------------------------------------------------- */}
       <h2>Existing Photos ({photos.length})</h2>
       <p style={{ fontSize: ".85rem", marginTop: 0 }}>Tip: drag thumbnails to reorder</p>
+      {/* grid of cards */}
       <div
         onDragOver={e => dragId != null && e.preventDefault()}
         onDrop={handleDropOnContainerEnd}
         style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-        gap: "1rem"
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+          gap: "1rem"
       }}>
-        {photos.map((p, i) => (
-          <div
-            key={p.id}
-            draggable
-            onDragStart={handleDragStartItem(p.id)}
-            onDragOver={handleDragOverItem(p.id)}
-            onDrop={handleDropOnItem(p.id)}
-            onDragEnd={handleDragEndGlobal}
-            style={{
-              border: "1px solid #ddd",
-              padding: "0.5rem",
-              background: overId === p.id ? "#f0f6ff" : "white",
-              cursor: "move"
-            }}
-          >
-            <img
-              src={viaCee(p.thumbnail_url || p.small_url || p.original_url)}
-              alt={p.title || p.name}
-              style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
-            />
-            <div style={{ marginTop: "0.5rem", fontSize: ".85rem", lineHeight: 1.3 }}>
-              <label style={{ display: "block", marginBottom: 8 }}>
-                <span style={{ display: "block", color: "#777", marginBottom: 4 }}>Title (display)</span>
-                <input
-                  value={p._title ?? p.title ?? ""}
-                  onChange={e => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _title: e.target.value } : x))}
-                  onKeyDown={e => { if (e.key === 'Enter') saveEdits(p); }}
-                  style={{ width: "100%" }}
-                  placeholder="Optional display title"
+        {(() => {
+          const fromIdx = dragId != null ? photos.findIndex(x => x.id === dragId) : -1;
+          const overIdx = overId != null ? photos.findIndex(x => x.id === overId) : -1;
+          let placeholderIndex = -1;
+          if (dragId != null && overId != null && fromIdx !== -1 && overIdx !== -1 && dragId !== overId) {
+            placeholderIndex = fromIdx < overIdx ? overIdx + 1 : overIdx;
+          }
+          const nodes = [];
+          photos.forEach((p, i) => {
+            if (i === placeholderIndex) {
+              nodes.push(
+                <div key={`drop-slot-${dragId}`} style={{
+                  border: "2px dashed #8aa1ff",
+                  borderRadius: 8,
+                  minHeight: 120,
+                  aspectRatio: "1 / 1",
+                  background: "#f7f9ff"
+                }} />
+              );
+            }
+            nodes.push(
+              <div
+                key={p.id}
+                draggable
+                onDragStart={handleDragStartItem(p.id)}
+                onDragOver={handleDragOverItem(p.id)}
+                onDrop={handleDropOnItem(p.id)}
+                onDragEnd={handleDragEndGlobal}
+                style={{
+                  border: "1px solid #ddd",
+                  padding: "0.5rem",
+                  background: overId === p.id ? "#f0f6ff" : "white",
+                  cursor: "move"
+                }}
+              >
+                <img
+                  src={viaCee(p.thumbnail_url || p.small_url || p.original_url)}
+                  alt={p.title || p.name}
+                  style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
                 />
-              </label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => saveEdits(p)} style={{ flex: "0 0 auto" }}>Save</button>
-                <div style={{ flex: 1 }} />
-                <button onClick={() => deletePhoto(p.id)} style={{ flex: "0 0 auto" }}>Delete</button>
+                <div style={{ marginTop: "0.5rem", fontSize: ".85rem", lineHeight: 1.3 }}>
+                  <label style={{ display: "block", marginBottom: 8 }}>
+                    <span style={{ display: "block", color: "#777", marginBottom: 4 }}>Title (display)</span>
+                    <input
+                      value={p._title ?? p.title ?? ""}
+                      onChange={e => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _title: e.target.value } : x))}
+                      onKeyDown={e => { if (e.key === 'Enter') saveEdits(p); }}
+                      style={{ width: "100%" }}
+                      placeholder="Optional display title"
+                    />
+                  </label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => saveEdits(p)} style={{ flex: "0 0 auto" }}>Save</button>
+                    <div style={{ flex: 1 }} />
+                    <button onClick={() => deletePhoto(p.id)} style={{ flex: "0 0 auto" }}>Delete</button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            );
+          });
+          if (placeholderIndex === photos.length) {
+            nodes.push(
+              <div key={`drop-slot-${dragId}-end`} style={{
+                border: "2px dashed #8aa1ff",
+                borderRadius: 8,
+                minHeight: 120,
+                aspectRatio: "1 / 1",
+                background: "#f7f9ff"
+              }} />
+            );
+          }
+          return nodes;
+        })()}
       </div>
     </main>
   );
