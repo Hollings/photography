@@ -18,14 +18,24 @@ export default function Photo({ photo, size = "small" }) {
     created_at,
   } = photo;
 
-// pick the correct image size, proxied through cee.photography
-const src = viaCee(
-  size === "full"
-    ? original_url
-    : size === "thumbnail"
-    ? (thumbnail_url || small_url || original_url)
-    : (small_url   || thumbnail_url || original_url)
-);
+// Build responsive sources
+const full = viaCee(original_url);
+const thumb = thumbnail_url ? viaCee(thumbnail_url) : null;
+const small = small_url ? viaCee(small_url) : null;
+const medium = photo.medium_url ? viaCee(photo.medium_url) : null;
+
+// Fallback src (small → thumbnail → full)
+const src = small || thumb || full;
+
+// srcset only includes sizes we know exist to avoid 404s
+const srcSet = [
+  thumb && `${thumb} 400w`,
+  small && `${small} 1600w`,
+  medium && `${medium} 2560w`,
+].filter(Boolean).join(", ");
+
+// Conservative sizes: single-column on mobile, multi-column on larger screens
+const sizes = "(max-width: 600px) 100vw, (max-width: 1200px) 50vw, 33vw";
 
 
   // derived metadata
@@ -41,13 +51,17 @@ const src = viaCee(
   console.log(src)
   return (
     <figure className="photo-card">
-      <img
-        src={src}
-        alt={title ?? name}
-        loading="lazy"
-        width="100%"
-        height="auto"
-      />
+      <a href={full} target="_blank" rel="noopener noreferrer">
+        <img
+          src={src}
+          srcSet={srcSet || undefined}
+          sizes={srcSet ? sizes : undefined}
+          alt={title ?? name}
+          loading="lazy"
+          width="100%"
+          height="auto"
+        />
+      </a>
 
       {/* centred, grey caption */}
       <figcaption className="caption">
@@ -71,6 +85,7 @@ Photo.propTypes = {
     id:            PropTypes.number.isRequired,
     name:          PropTypes.string.isRequired,
     original_url:  PropTypes.string.isRequired,
+    medium_url:    PropTypes.string,
     small_url:     PropTypes.string,      // no longer “isRequired”
     thumbnail_url: PropTypes.string.isRequired,
     sort_order:    PropTypes.number,

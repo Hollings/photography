@@ -50,7 +50,7 @@ def upload_photo(
     key_original = f"full/{original.name}"
     url_original = storage.upload_file(original, key_original)
 
-    urls: Dict[str, Optional[str]] = {"small": None, "thumbnail": None}
+    urls: Dict[str, Optional[str]] = {"thumbnail": None, "small": None, "medium": None}
     for variant in variant_builder.VARIANT_SPECS:
         vfile = variant_builder.ensure_variant(original, variant)
         key   = f"{variant}/{vfile.name}"
@@ -61,6 +61,7 @@ def upload_photo(
         sha1           = sha1,
         size           = size,
         original_url   = url_original,
+        medium_url     = urls["medium"],
         small_url      = urls["small"],
         thumbnail_url  = urls["thumbnail"],
         sort_order     = sort_order,

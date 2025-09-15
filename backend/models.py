@@ -10,6 +10,7 @@ class Photo(Base):
     sha1           = Column(String(40), nullable=False)
     size           = Column(Integer, nullable=False)
     original_url   = Column(String, nullable=False)
+    medium_url     = Column(String)
     small_url      = Column(String)
     thumbnail_url  = Column(String)
     sort_order     = Column(Integer, default=0, nullable=False)
@@ -24,3 +25,14 @@ class Photo(Base):
 
 # Bootstrap tables (no‑op if already present)
 Base.metadata.create_all(bind=engine)
+
+# Lightweight migration: add medium_url column to existing SQLite DBs if missing
+try:
+    if engine.dialect.name == "sqlite":
+        with engine.connect() as conn:
+            rows = conn.exec_driver_sql("PRAGMA table_info(photos)").fetchall()
+            cols = {row[1] for row in rows}
+            if "medium_url" not in cols:
+                conn.exec_driver_sql("ALTER TABLE photos ADD COLUMN medium_url TEXT")
+except Exception as _e:  # non-fatal; logs handled at app level if needed
+    pass

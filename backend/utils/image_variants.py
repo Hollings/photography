@@ -7,7 +7,7 @@ from PIL import Image, ImageOps
 
 class VariantBuilder:
     TMP_ROOT       = Path(tempfile.gettempdir()) / "photo_variants"
-    VARIANT_SPECS  = {"thumbnail": 400, "small": 1600}
+    VARIANT_SPECS  = {"thumbnail": 400, "small": 1600, "medium": 2560}
 
     def ensure_variant(self, base: Path, variant: str) -> Path:
         target_px = self.VARIANT_SPECS[variant]

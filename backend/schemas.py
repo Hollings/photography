@@ -8,6 +8,7 @@ class PhotoOut(BaseModel):
     id:            int
     name:          str
     original_url:  str
+    medium_url:    Optional[str] = None
     small_url:     Optional[str] = None
     thumbnail_url: Optional[str] = None
     sort_order:    int
