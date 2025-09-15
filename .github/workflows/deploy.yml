@@ -175,39 +175,43 @@ jobs:
           SK=${{ steps.s3.outputs.frontend_key }}
           UK=${{ steps.s3.outputs.unit_key }}
           NK=${{ steps.s3.outputs.nginx_key }}
+          # Build parameters JSON to avoid shell/JSON quoting issues
+          cat > ssm-params.json <<JSON
+          {"commands": [
+            "set -euo pipefail",
+            "sudo dnf -y install awscli jq || true",
+            "cd /home/ec2-user",
+            "aws s3 cp s3://${BUCKET}/${BK} /tmp/backend.tar.gz",
+            "aws s3 cp s3://${BUCKET}/${SK} /tmp/site-dist.tar.gz",
+            "aws s3 cp s3://${BUCKET}/${UK} /tmp/cee-api.service",
+            "aws s3 cp s3://${BUCKET}/${NK} /tmp/cee-nginx.conf",
+            "sudo mkdir -p /srv/cee/app /srv/cee/data /var/www/cee/site",
+            "if [ ! -d /srv/cee/venv ]; then sudo python3 -m venv /srv/cee/venv; fi",
+            "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
+            "sudo /srv/cee/venv/bin/pip install --upgrade pip",
+            "sudo /srv/cee/venv/bin/pip install -r /srv/cee/app/requirements.txt",
+            "sudo install -m 644 /tmp/cee-api.service /etc/systemd/system/cee-api.service",
+            "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
+            "sudo install -d -m 775 -o ec2-user -g nginx /srv/cee/data",
+            "# Ensure env defaults exist",
+            "ENV=/srv/cee/.env; sudo touch $ENV; sudo chown ec2-user:nginx $ENV",
+            "grep -q '^DATABASE_URL=' $ENV || echo DATABASE_URL=sqlite:////srv/cee/data/photos.db | sudo tee -a $ENV >/dev/null",
+            "grep -q '^AWS_DEFAULT_REGION=' $ENV || echo AWS_DEFAULT_REGION=${REGION} | sudo tee -a $ENV >/dev/null",
+            "grep -q '^S3_BUCKET=' $ENV || echo S3_BUCKET=${BUCKET} | sudo tee -a $ENV >/dev/null",
+            "sudo systemctl daemon-reload",
+            "sudo systemctl enable cee-api.service",
+            "sudo systemctl restart cee-api.service",
+            "sudo tar -xzf /tmp/site-dist.tar.gz -C /var/www/cee/site",
+            "sudo chown -R ec2-user:nginx /var/www/cee/site",
+            "sudo nginx -t",
+            "sudo systemctl reload nginx || sudo systemctl restart nginx"
+          ]}
+          JSON
           CMD_ID=$(aws ssm send-command \
             --instance-ids "$IID" \
             --document-name "AWS-RunShellScript" \
             --comment "cee deploy ${GITHUB_SHA}" \
-            --parameters commands='[
-              "set -euo pipefail",
-              "sudo dnf -y install awscli jq || true",
-              "cd /home/ec2-user",
-              "aws s3 cp s3://'"$BUCKET"'/'"$BK"' /tmp/backend.tar.gz",
-              "aws s3 cp s3://'"$BUCKET"'/'"$SK"' /tmp/site-dist.tar.gz",
-              "aws s3 cp s3://'"$BUCKET"'/'"$UK"' /tmp/cee-api.service",
-              "aws s3 cp s3://'"$BUCKET"'/'"$NK"' /tmp/cee-nginx.conf",
-              "sudo mkdir -p /srv/cee/app /srv/cee/data /var/www/cee/site",
-              "if [ ! -d /srv/cee/venv ]; then sudo python3 -m venv /srv/cee/venv; fi",
-              "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
-              "sudo /srv/cee/venv/bin/pip install --upgrade pip",
-              "sudo /srv/cee/venv/bin/pip install -r /srv/cee/app/requirements.txt",
-              "sudo install -m 644 /tmp/cee-api.service /etc/systemd/system/cee-api.service",
-              "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
-              "sudo install -d -m 775 -o ec2-user -g nginx /srv/cee/data",
-              "# Ensure env defaults exist",
-              "ENV=/srv/cee/.env; sudo touch $ENV; sudo chown ec2-user:nginx $ENV",
-              "grep -q '^DATABASE_URL=' $ENV || echo 'DATABASE_URL=sqlite:////srv/cee/data/photos.db' | sudo tee -a $ENV >/dev/null",
-              "grep -q '^AWS_DEFAULT_REGION=' $ENV || echo 'AWS_DEFAULT_REGION='"$REGION" | sudo tee -a $ENV >/dev/null",
-              "grep -q '^S3_BUCKET=' $ENV || echo 'S3_BUCKET='"$BUCKET" | sudo tee -a $ENV >/dev/null",
-              "sudo systemctl daemon-reload",
-              "sudo systemctl enable cee-api.service",
-              "sudo systemctl restart cee-api.service",
-              "sudo tar -xzf /tmp/site-dist.tar.gz -C /var/www/cee/site",
-              "sudo chown -R ec2-user:nginx /var/www/cee/site",
-              "sudo nginx -t",
-              "sudo systemctl reload nginx || sudo systemctl restart nginx"
-            ]' \
+            --parameters file://ssm-params.json \
             --query 'Command.CommandId' --output text)
           echo "SSM Command: $CMD_ID"
           aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$IID"
