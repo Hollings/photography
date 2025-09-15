@@ -205,6 +205,47 @@ jobs:
           echo "SSM status: $STATUS"
           test "$STATUS" = "Success"
 
+      - name: Post-deploy health and logs
+        if: ${{ always() }}
+        env:
+          IID: ${{ steps.discover.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          cat > ssm-check.json <<'JSON'
+          {"commands": [
+            "set -e",
+            "echo '--- systemctl status cee-api.service ---'",
+            "systemctl status cee-api.service --no-pager || true",
+            "echo '--- journalctl (last 120) ---'",
+            "journalctl -u cee-api.service -n 120 --no-pager || true",
+            "echo '--- curl local /photos ---'",
+            "curl -sS -D- http://127.0.0.1:9002/photos || true",
+            "echo '--- env file ---'",
+            "sudo sed -n '1,200p' /srv/cee/.env || true",
+            "echo '--- nginx test ---'",
+            "sudo nginx -t || true",
+            "echo '--- nginx error log tail ---'",
+            "sudo tail -n 120 /var/log/nginx/error.log || true"
+          ]}
+          JSON
+          CHECK_ID=$(aws ssm send-command \
+            --instance-ids "$IID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "cee post-deploy checks ${GITHUB_SHA}" \
+            --parameters file://ssm-check.json \
+            --query 'Command.CommandId' --output text)
+          aws ssm wait command-executed --command-id "$CHECK_ID" --instance-id "$IID" || true
+          echo "--- SSM post-check stdout ---"
+          aws ssm get-command-invocation \
+            --command-id "$CHECK_ID" --instance-id "$IID" \
+            --plugin-name aws:runShellScript \
+            --query 'StandardOutputContent' --output text || true
+          echo "--- SSM post-check stderr ---"
+          aws ssm get-command-invocation \
+            --command-id "$CHECK_ID" --instance-id "$IID" \
+            --plugin-name aws:runShellScript \
+            --query 'StandardErrorContent' --output text || true
+
       - name: Cleanup S3 artifacts
         if: ${{ always() && steps.s3.outputs.backend_key }}
         run: |
