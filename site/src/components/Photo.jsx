@@ -54,7 +54,7 @@ const sizes = layout === "single"
   console.log(src)
   return (
     <figure className="photo-card">
-      <a href={`/p/${photo.id}`}>
+      <a href={full} target="_blank" rel="noopener noreferrer">
         <img
           src={src}
           srcSet={srcSet || undefined}
