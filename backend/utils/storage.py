@@ -26,3 +26,20 @@ class S3Storage:
     def delete_file(self, key: str) -> None:
         logger.info("Deleting key=%s from S3", key)
         self.client.delete_object(Bucket=self.bucket, Key=key)
+
+    def copy_file(self, old_key: str, new_key: str) -> None:
+        logger.info("Copying %s → %s in S3", old_key, new_key)
+        self.client.copy_object(
+            CopySource={"Bucket": self.bucket, "Key": old_key},
+            Bucket=self.bucket,
+            Key=new_key,
+        )
+
+    def rename_file(self, old_key: str, new_key: str) -> None:
+        if old_key == new_key:
+            return
+        self.copy_file(old_key, new_key)
+        try:
+            self.delete_file(old_key)
+        except Exception as e:
+            logger.warning("Failed deleting old key after copy: %s", e)

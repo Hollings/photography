@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { viaCee } from "./utils";
+import { viaCee } from "./utils";
 
 export default function Management() {
   const [photos, setPhotos] = useState([]);
@@ -20,6 +21,24 @@ export default function Management() {
     fetch(`/photos/${id}`, { method: "DELETE" })
       .then(() => setPhotos(p => p.filter(ph => ph.id !== id)))
       .catch(console.error);
+  };
+
+  const saveName = (p) => {
+    const name = (p._name ?? p.name).trim();
+    if (!name || name === p.name) return;
+    fetch(`/photos/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name })
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`Rename failed: ${r.status}`);
+        return r.json();
+      })
+      .then(updated => {
+        setPhotos(prev => prev.map(x => x.id === p.id ? updated : x));
+      })
+      .catch(err => alert(err.message));
   };
 
   const uploadFiles = files => {
@@ -163,14 +182,22 @@ export default function Management() {
               style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
             />
             <div style={{ marginTop: "0.5rem", fontSize: ".85rem", lineHeight: 1.3 }}>
-              <strong>{p.title || p.name || "—"}</strong>
+              <label style={{ display: "block", marginBottom: 4 }}>
+                <span style={{ display: "block", color: "#777", marginBottom: 4 }}>File name</span>
+                <input
+                  value={p._name ?? p.name}
+                  onChange={e => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _name: e.target.value } : x))}
+                  onKeyDown={e => { if (e.key === 'Enter') saveName(p); }}
+                  style={{ width: "100%" }}
+                />
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => saveName(p)} style={{ flex: "0 0 auto" }}>Save</button>
+                <button onClick={() => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _name: undefined } : x))} style={{ flex: "0 0 auto" }}>Reset</button>
+                <div style={{ flex: 1 }} />
+                <button onClick={() => deletePhoto(p.id)} style={{ flex: "0 0 auto" }}>Delete</button>
+              </div>
             </div>
-            <button
-              onClick={() => deletePhoto(p.id)}
-              style={{ marginTop: "0.5rem", width: "100%" }}
-            >
-              Delete
-            </button>
           </div>
         ))}
       </div>

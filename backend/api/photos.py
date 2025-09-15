@@ -84,8 +84,51 @@ def edit_photo(photo_id: int, payload: PhotoUpdate, db: Session = Depends(get_db
     photo = db.get(Photo, photo_id)
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
+    # Title update
     if payload.title is not None:
         photo.title = payload.title
+    # Name (filename) update: rename S3 keys and update URLs
+    if payload.name is not None:
+        new_name = payload.name.strip()
+        if not new_name:
+            raise HTTPException(status_code=422, detail="name cannot be empty")
+        old_name = photo.name
+        if new_name != old_name:
+            # Preserve extension if caller omitted it
+            if "." not in new_name and "." in old_name:
+                ext = old_name.split(".")[-1]
+                new_name = f"{new_name}.{ext}"
+
+            # Prepare key remaps for each available variant
+            def key_from_url(url: str) -> str:
+                return url.split("/", 3)[-1]
+
+            remaps: list[tuple[str, str, str]] = []  # (field, old_key, new_key)
+            if photo.original_url:
+                old_key = key_from_url(photo.original_url)
+                prefix  = old_key.split("/", 1)[0]
+                remaps.append(("original_url", old_key, f"{prefix}/{new_name}"))
+            if photo.small_url:
+                ok = key_from_url(photo.small_url)
+                remaps.append(("small_url", ok, f"small/{new_name}"))
+            if getattr(photo, "medium_url", None):
+                ok = key_from_url(photo.medium_url)
+                remaps.append(("medium_url", ok, f"medium/{new_name}"))
+            if photo.thumbnail_url:
+                ok = key_from_url(photo.thumbnail_url)
+                remaps.append(("thumbnail_url", ok, f"thumbnail/{new_name}"))
+
+            # Execute renames in S3
+            for _, old_key, new_key in remaps:
+                try:
+                    storage.rename_file(old_key, new_key)
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed renaming {old_key} -> {new_key}: {e}")
+
+            # Update DB URLs
+            for field, _, new_key in remaps:
+                setattr(photo, field, storage.public_url(new_key))
+            photo.name = new_name
     if payload.sort_order is not None:
         photo.sort_order = payload.sort_order
     db.add(photo)

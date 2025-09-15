@@ -27,4 +27,5 @@ class PhotoOut(BaseModel):
 
 class PhotoUpdate(BaseModel):
     title:      Optional[str] = None
+    name:       Optional[str] = None
     sort_order: Optional[int] = None
