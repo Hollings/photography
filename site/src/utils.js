@@ -4,8 +4,11 @@
  */
 export function extractAperture(lens) {
   if (typeof lens !== "string") return "";
-  const match = lens.match(/f\/?(\d+(?:\.\d+)?)/i);
-  return match ? match[1] : "";
+  // Look for an aperture marker that is not part of a word like "EF100".
+  // Matches: f/2.8, f 2.8, ƒ/2.8
+  const re = /(?:^|[^A-Za-z])(?:f|ƒ)\s*\/?(\d+(?:\.\d+)?)/i;
+  const m = lens.match(re);
+  return m ? m[1] : "";
 }
 
 /**

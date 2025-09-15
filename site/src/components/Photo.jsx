@@ -42,7 +42,7 @@ const sizes = layout === "single"
 
   // derived metadata
   const formattedShutter  = formatShutter(shutter_speed);
-  const formattedAperture = extractAperture(lens || "");
+  const formattedAperture = (photo.aperture ? photo.aperture.replace(/^f\//i, "") : extractAperture(lens || ""));
   const when = photo.taken_at || created_at;
   const taken =
     when
