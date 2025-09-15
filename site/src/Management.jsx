@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { viaCee } from "./utils";
-import { viaCee } from "./utils";
 
 export default function Management() {
   const [photos, setPhotos] = useState([]);
