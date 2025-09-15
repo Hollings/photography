@@ -110,6 +110,12 @@ jobs:
             root /var/www/cee/site;
             index index.html;
             # SPA fallback
+            # Protect management UI with basic auth
+            location ^~ /manage {
+              auth_basic "Management";
+              auth_basic_user_file /etc/nginx/cee.htpasswd;
+              try_files $uri /index.html;
+            }
             location / { try_files $uri /index.html; }
             # Backend routes
             location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
@@ -185,6 +191,10 @@ jobs:
             "sudo /srv/cee/venv/bin/pip install -r /srv/cee/app/requirements.txt",
             "sudo install -m 644 /tmp/cee-api.service /etc/systemd/system/cee-api.service",
             "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
+            # Create/update basic auth file for /manage (user: hollings)
+            "echo 'hollings:$apr1$IREq9XjJ$uvhAU3MXBFJD3h80Pc76c1' | sudo tee /etc/nginx/cee.htpasswd >/dev/null",
+            "sudo chmod 640 /etc/nginx/cee.htpasswd",
+            "sudo chgrp nginx /etc/nginx/cee.htpasswd || sudo chown root:nginx /etc/nginx/cee.htpasswd || true",
             "sudo install -d -m 775 -o ec2-user -g nginx /srv/cee/data",
             "# Ensure env defaults exist (force-set idempotently)",
             "ENV=/srv/cee/.env; sudo touch $ENV; sudo chown ec2-user:nginx $ENV",
