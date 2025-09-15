@@ -44,18 +44,36 @@ export default function Management() {
 
   const uploadFiles = files => {
     const list = Array.from(files);
+    // Build a set of existing names to skip duplicates (client-side fast path)
+    const existing = new Set(photos.map(p => p.name));
+    const toUpload = [];
+    list.forEach((file, idx) => {
+      if (existing.has(file.name)) {
+        const id = `${Date.now()}-skip-${idx}-${Math.random().toString(36).slice(2,6)}`;
+        setUploads(u => [...u, { id, name: file.name, progress: 0, status: "skipped", error: null }]);
+      } else {
+        existing.add(file.name);
+        toUpload.push(file);
+      }
+    });
+
+    if (toUpload.length === 0) {
+      setTimeout(() => setUploads([]), 1000);
+      return Promise.resolve();
+    }
+
     // bounded concurrency queue
     let i = 0, inFlight = 0, done = 0;
     return new Promise(resolve => {
       const pump = () => {
-        while (inFlight < UPLOAD_CONCURRENCY && i < list.length) {
-          const file = list[i++];
+        while (inFlight < UPLOAD_CONCURRENCY && i < toUpload.length) {
+          const file = toUpload[i++];
           inFlight++;
           uploadOne(file, i-1)
             .catch(() => {})
             .finally(() => {
               inFlight--; done++;
-              if (done === list.length) {
+              if (done === toUpload.length) {
                 // clear panel shortly after finishing
                 setTimeout(() => setUploads([]), 1000);
                 resolve();
@@ -97,6 +115,9 @@ export default function Management() {
       if (xhr.status >= 200 && xhr.status < 300) {
         setUploads(u => u.map(x => x.id === id ? { ...x, status: "done" } : x));
         refresh();
+      } else if (xhr.status === 409) {
+        // server-side duplicate safeguard
+        setUploads(u => u.map(x => x.id === id ? { ...x, status: "skipped", error: null } : x));
       } else {
         setUploads(u => u.map(x => x.id === id ? { ...x, status: "error", error: `HTTP ${xhr.status}` } : x));
       }
@@ -180,7 +201,7 @@ export default function Management() {
           boxShadow: "0 1px 2px rgba(0,0,0,.04)"
         }}>
           <div style={{ marginBottom: 8, fontWeight: 600 }}>
-            Uploading {uploads.filter(u => u.status !== 'done').length} / {uploads.length}
+            Active {uploads.filter(u => u.status === 'uploading' || u.status === 'processing').length} / {uploads.length}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {uploads.map(u => (
