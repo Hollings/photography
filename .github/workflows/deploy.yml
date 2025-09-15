@@ -76,14 +76,14 @@ jobs:
           sed -i "s/img.save(out_path,exif=exif_bytes, \*\*save_kwargs)/[ \$\(test -n \"\$exif_bytes\" \) ]/" utils/image_variants.py || true
           # If sed didn't work for the EXIF guard, replace line via python for reliability
           python - <<'PY'
-from pathlib import Path
-p=Path('utils/image_variants.py')
-t=p.read_text()
-old='img.save(out_path,exif=exif_bytes, **save_kwargs)'
-new='img.save(out_path, **save_kwargs) if exif_bytes is None else img.save(out_path, exif=exif_bytes, **save_kwargs)'
-if old in t:
-    p.write_text(t.replace(old,new))
-PY
+          from pathlib import Path
+          p=Path('utils/image_variants.py')
+          t=p.read_text()
+          old='img.save(out_path,exif=exif_bytes, **save_kwargs)'
+          new='img.save(out_path, **save_kwargs) if exif_bytes is None else img.save(out_path, exif=exif_bytes, **save_kwargs)'
+          if old in t:
+              p.write_text(t.replace(old,new))
+          PY
           # Package backend
           tar -czf ../backend.tar.gz .
 
@@ -223,4 +223,3 @@ PY
           aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.frontend_key }} || true
           aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.unit_key }} || true
           aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.nginx_key }} || true
-
