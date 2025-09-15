@@ -123,6 +123,8 @@ jobs:
             # Proxied images from S3 via this domain
             location ^~ /images/ {
               proxy_set_header Host S3_HOST;
+              # Do not forward Basic Auth header to S3 (causes 403/400)
+              proxy_set_header Authorization "";
               proxy_http_version 1.1;
               proxy_set_header Connection "";
               proxy_read_timeout 300s;
