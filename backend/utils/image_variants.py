@@ -4,6 +4,16 @@ from typing import Any
 
 from PIL import Image, ImageOps
 
+# Ensure HEIC/HEIF support if pillow-heif is available
+try:  # pragma: no cover
+    import pillow_heif
+
+    pillow_heif.register_heif_opener()
+except Exception:
+    # If the plugin isn't installed or fails to register, Pillow will still
+    # handle standard formats (JPEG/PNG). HEIC uploads would raise later.
+    pass
+
 
 class VariantBuilder:
     TMP_ROOT       = Path(tempfile.gettempdir()) / "photo_variants"

@@ -12,6 +12,8 @@ env:
   AWS_REGION: us-west-1
   INSTANCE_TAG_NAME: japanesebird-web
   ASSETS_BUCKET: japanesebirdcookingspaghetti-assets
+  # New: private bucket for deploy artifacts/configs (no public access)
+  ARTIFACTS_BUCKET: cee-artifacts-prod-780997964150-usw1
   DOMAIN: cee.photography
 
 jobs:
@@ -168,7 +170,7 @@ jobs:
           sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx.conf
           sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx.conf
 
-      - name: Upload deploy artifacts to S3
+      - name: Upload deploy artifacts to S3 (private artifacts bucket)
         id: s3
         run: |
           set -euo pipefail
@@ -176,10 +178,10 @@ jobs:
           FRONTEND_KEY=cee/deploy/site-${GITHUB_SHA}.tar.gz
           CONFIG_UNIT_KEY=cee/deploy/cee-api-${GITHUB_SHA}.service
           CONFIG_NGX_KEY=cee/deploy/cee-nginx-${GITHUB_SHA}.conf
-          aws s3 cp backend.tar.gz      s3://${ASSETS_BUCKET}/$BACKEND_KEY
-          aws s3 cp site-dist.tar.gz    s3://${ASSETS_BUCKET}/$FRONTEND_KEY
-          aws s3 cp cee-api.service     s3://${ASSETS_BUCKET}/$CONFIG_UNIT_KEY
-          aws s3 cp cee-nginx.conf      s3://${ASSETS_BUCKET}/$CONFIG_NGX_KEY
+          aws s3 cp backend.tar.gz      s3://${ARTIFACTS_BUCKET}/$BACKEND_KEY
+          aws s3 cp site-dist.tar.gz    s3://${ARTIFACTS_BUCKET}/$FRONTEND_KEY
+          aws s3 cp cee-api.service     s3://${ARTIFACTS_BUCKET}/$CONFIG_UNIT_KEY
+          aws s3 cp cee-nginx.conf      s3://${ARTIFACTS_BUCKET}/$CONFIG_NGX_KEY
           echo "backend_key=$BACKEND_KEY" >> $GITHUB_OUTPUT
           echo "frontend_key=$FRONTEND_KEY" >> $GITHUB_OUTPUT
           echo "unit_key=$CONFIG_UNIT_KEY" >> $GITHUB_OUTPUT
@@ -190,7 +192,10 @@ jobs:
           IID: ${{ steps.discover.outputs.instance_id }}
         run: |
           set -euo pipefail
-          BUCKET=${ASSETS_BUCKET}
+          # Images bucket (public read for image prefixes only)
+          BUCKET_IMG=${ASSETS_BUCKET}
+          # Private artifacts bucket (deploy packages/config)
+          BUCKET_ART=${ARTIFACTS_BUCKET}
           REGION=${AWS_REGION}
           export BK=${{ steps.s3.outputs.backend_key }}
           export SK=${{ steps.s3.outputs.frontend_key }}
@@ -199,7 +204,8 @@ jobs:
           # Build parameters JSON via Python so $ENV remains literal for remote shell
           python3 - <<'PY'
           import json, os
-          BUCKET = os.environ['ASSETS_BUCKET']
+          BUCKET_IMG = os.environ['ASSETS_BUCKET']
+          BUCKET_ART = os.environ['ARTIFACTS_BUCKET']
           REGION = os.environ['AWS_REGION']
           BK = os.environ['BACKEND_KEY'] if 'BACKEND_KEY' in os.environ else os.environ.get('BK', '')
           SK = os.environ['FRONTEND_KEY'] if 'FRONTEND_KEY' in os.environ else os.environ.get('SK', '')
@@ -209,10 +215,10 @@ jobs:
             "set -euo pipefail",
             "sudo dnf -y install awscli jq || true",
             "cd /home/ec2-user",
-            f"aws s3 cp s3://{BUCKET}/{BK} /tmp/backend.tar.gz",
-            f"aws s3 cp s3://{BUCKET}/{SK} /tmp/site-dist.tar.gz",
-            f"aws s3 cp s3://{BUCKET}/{UK} /tmp/cee-api.service",
-            f"aws s3 cp s3://{BUCKET}/{NK} /tmp/cee-nginx.conf",
+            f"aws s3 cp s3://{BUCKET_ART}/{BK} /tmp/backend.tar.gz",
+            f"aws s3 cp s3://{BUCKET_ART}/{SK} /tmp/site-dist.tar.gz",
+            f"aws s3 cp s3://{BUCKET_ART}/{UK} /tmp/cee-api.service",
+            f"aws s3 cp s3://{BUCKET_ART}/{NK} /tmp/cee-nginx.conf",
             "sudo mkdir -p /srv/cee/app /srv/cee/data /var/www/cee/site",
             "if [ ! -d /srv/cee/venv ]; then sudo python3 -m venv /srv/cee/venv; fi",
             "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
@@ -231,7 +237,7 @@ jobs:
             "sudo sed -i -e '/^DATABASE_URL=/d' -e '/^AWS_DEFAULT_REGION=/d' -e '/^S3_BUCKET=/d' $ENV",
             "echo DATABASE_URL=sqlite:////srv/cee/data/photos.db | sudo tee -a $ENV >/dev/null",
             f"echo AWS_DEFAULT_REGION={REGION} | sudo tee -a $ENV >/dev/null",
-            f"echo S3_BUCKET={BUCKET} | sudo tee -a $ENV >/dev/null",
+            f"echo S3_BUCKET={BUCKET_IMG} | sudo tee -a $ENV >/dev/null",
             "sudo systemctl daemon-reload",
             "sudo systemctl enable cee-api.service",
             "sudo systemctl restart cee-api.service",
@@ -297,11 +303,11 @@ jobs:
             --plugin-name aws:runShellScript \
             --query 'StandardErrorContent' --output text || true
 
-      - name: Cleanup S3 artifacts
+      - name: Cleanup S3 artifacts (artifacts bucket)
         if: ${{ always() && steps.s3.outputs.backend_key }}
         run: |
           set -euo pipefail
-          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.backend_key }} || true
-          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.frontend_key }} || true
-          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.unit_key }} || true
-          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.nginx_key }} || true
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.backend_key }} || true
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.frontend_key }} || true
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.unit_key }} || true
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.nginx_key }} || true

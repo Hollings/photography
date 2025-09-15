@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+import os
+import threading
+from PIL import UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,6 +21,12 @@ from utils.storage import S3Storage
 router          = APIRouter()
 variant_builder = VariantBuilder()
 storage         = S3Storage()
+
+# Limit concurrent uploads to reduce memory pressure on small instances.
+# Default to 1; can be raised via env UPLOAD_CONCURRENCY if the host has RAM.
+_max_conc = int(os.getenv("UPLOAD_CONCURRENCY", "1"))
+_max_conc = 1 if _max_conc < 1 else _max_conc
+upload_semaphore = threading.BoundedSemaphore(_max_conc)
 
 @router.get("/photos", response_model=list[PhotoOut])
 def list_photos(db: Session = Depends(get_db)):
@@ -34,50 +43,68 @@ def upload_photo(
     sort_order: int   = Form(0),
     db: Session       = Depends(get_db),
 ):
+    # Acquire concurrency slot
+    upload_semaphore.acquire()
     tmp_dir  = Path(tempfile.mkdtemp(prefix="photo_upload_"))
     original = tmp_dir / file.filename
-    with original.open("wb") as fh:
-        for chunk in iter(lambda: file.file.read(8192), b""):
-            fh.write(chunk)
-
-    sha1  = file_sha1(original)
-    size  = original.stat().st_size
-    exif  = extract_exif(original)
-    print("DEBUG EXIF:", exif)
-    if title is not None:
-        exif["title"] = title
-
-    key_original = f"full/{original.name}"
-    url_original = storage.upload_file(original, key_original)
-
-    urls: Dict[str, Optional[str]] = {"thumbnail": None, "small": None, "medium": None}
-    for variant in variant_builder.VARIANT_SPECS:
-        vfile = variant_builder.ensure_variant(original, variant)
-        key   = f"{variant}/{vfile.name}"
-        urls[variant] = storage.upload_file(vfile, key)
-
-    photo = Photo(
-        name           = original.name,
-        sha1           = sha1,
-        size           = size,
-        original_url   = url_original,
-        medium_url     = urls["medium"],
-        small_url      = urls["small"],
-        thumbnail_url  = urls["thumbnail"],
-        sort_order     = sort_order,
-        created_at     = datetime.utcnow(),
-        **{k: exif.get(k) for k in (
-            "title", "camera", "lens", "iso",
-            "aperture", "shutter_speed", "focal_length",
-        )},
-    )
     try:
-        db.add(photo)
-        db.flush()
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="A photo with this name already exists")
+        with original.open("wb") as fh:
+            for chunk in iter(lambda: file.file.read(8192), b""):
+                fh.write(chunk)
 
-    return photo
+        sha1  = file_sha1(original)
+        size  = original.stat().st_size
+        exif  = extract_exif(original)
+        print("DEBUG EXIF:", exif)
+        if title is not None:
+            exif["title"] = title
+
+        key_original = f"full/{original.name}"
+        url_original = storage.upload_file(original, key_original)
+
+        urls: Dict[str, Optional[str]] = {"thumbnail": None, "small": None, "medium": None}
+        try:
+            for variant in variant_builder.VARIANT_SPECS:
+                vfile = variant_builder.ensure_variant(original, variant)
+                key   = f"{variant}/{vfile.name}"
+                urls[variant] = storage.upload_file(vfile, key)
+        except (UnidentifiedImageError, OSError):
+            raise HTTPException(status_code=415, detail="Unreadable image data or unsupported type.")
+
+        photo = Photo(
+            name           = original.name,
+            sha1           = sha1,
+            size           = size,
+            original_url   = url_original,
+            medium_url     = urls["medium"],
+            small_url      = urls["small"],
+            thumbnail_url  = urls["thumbnail"],
+            sort_order     = sort_order,
+            created_at     = datetime.utcnow(),
+            **{k: exif.get(k) for k in (
+                "title", "camera", "lens", "iso",
+                "aperture", "shutter_speed", "focal_length",
+            )},
+        )
+        try:
+            db.add(photo)
+            db.flush()
+        except IntegrityError:
+            raise HTTPException(status_code=409, detail="A photo with this name already exists")
+
+        return photo
+    finally:
+        try:
+            # Best-effort cleanup of temp dir; ignore failures
+            for p in tmp_dir.glob("*"):
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
+            tmp_dir.rmdir()
+        except Exception:
+            pass
+        upload_semaphore.release()
 
 @router.patch("/photos/{photo_id}", response_model=PhotoOut)
 def edit_photo(photo_id: int, payload: PhotoUpdate, db: Session = Depends(get_db)):
