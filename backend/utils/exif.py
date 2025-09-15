@@ -146,9 +146,8 @@ def extract_exif(path: Path) -> Dict[str, Any]:
         except Exception:  # pragma: no cover
             pass
 
-        # If we’ve got at least camera or title we can return now
-        if meta:
-            return meta
+        # Do not return yet — we may still need to fill taken_at via
+        # Pillow or XMP if EXIF DateTimeOriginal is missing.
 
     # --------------------------------------------------------------------- #
     # pass 2 – fallback to Pillow (JPEG/TIFF only)                           #
