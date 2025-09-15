@@ -3,7 +3,8 @@ from __future__ import annotations
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+import re
 
 import exifread
 from PIL import ExifTags, Image, ImageOps
@@ -224,5 +225,32 @@ def extract_exif(path: Path) -> Dict[str, Any]:
                         continue
     except Exception:  # pragma: no cover
         pass
+
+    # --------------------------------------------------------------------- #
+    # pass 3 – minimal XMP sniff (LR may write XMP without EXIF)             #
+    # --------------------------------------------------------------------- #
+    if "taken_at" not in meta:
+        try:
+            # Read a reasonable chunk to find embedded XMP packet
+            with path.open("rb") as fh:
+                blob = fh.read(1024 * 1024)  # 1 MB should cover XMP packet
+            try:
+                text = blob.decode("utf-8", errors="ignore")
+            except Exception:
+                text = ""
+            if text:
+                m = re.search(r'(?:xmp:CreateDate|photoshop:DateCreated)="([^"]+)"', text)
+                if m:
+                    s = m.group(1).strip()
+                    # Normalise and parse ISO‑8601 (with timezone if present)
+                    try:
+                        dt = datetime.fromisoformat(s)
+                        if dt.tzinfo is not None:
+                            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                        meta["taken_at"] = dt
+                    except Exception:
+                        pass
+        except Exception:  # pragma: no cover
+            pass
 
     return meta
