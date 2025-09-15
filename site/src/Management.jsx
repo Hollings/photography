@@ -22,16 +22,20 @@ export default function Management() {
       .catch(console.error);
   };
 
-  const saveName = (p) => {
-    const name = (p._name ?? p.name).trim();
-    if (!name || name === p.name) return;
+  const saveEdits = (p) => {
+    const patch = {};
+    const nextName  = (p._name  ?? p.name)?.trim();
+    const nextTitle = (p._title ?? p.title ?? "").trim();
+    if (nextName && nextName !== p.name) patch.name = nextName;
+    if (nextTitle !== (p.title ?? "")) patch.title = nextTitle;
+    if (Object.keys(patch).length === 0) return;
     fetch(`/photos/${p.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name })
+      body: JSON.stringify(patch)
     })
       .then(r => {
-        if (!r.ok) throw new Error(`Rename failed: ${r.status}`);
+        if (!r.ok) throw new Error(`Update failed: ${r.status}`);
         return r.json();
       })
       .then(updated => {
@@ -181,18 +185,29 @@ export default function Management() {
               style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
             />
             <div style={{ marginTop: "0.5rem", fontSize: ".85rem", lineHeight: 1.3 }}>
-              <label style={{ display: "block", marginBottom: 4 }}>
+              <label style={{ display: "block", marginBottom: 8 }}>
+                <span style={{ display: "block", color: "#777", marginBottom: 4 }}>Title (display)</span>
+                <input
+                  value={p._title ?? p.title ?? ""}
+                  onChange={e => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _title: e.target.value } : x))}
+                  onKeyDown={e => { if (e.key === 'Enter') saveEdits(p); }}
+                  style={{ width: "100%" }}
+                  placeholder="Optional display title"
+                />
+              </label>
+              <label style={{ display: "block", marginBottom: 8 }}>
                 <span style={{ display: "block", color: "#777", marginBottom: 4 }}>File name</span>
                 <input
                   value={p._name ?? p.name}
                   onChange={e => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _name: e.target.value } : x))}
-                  onKeyDown={e => { if (e.key === 'Enter') saveName(p); }}
+                  onKeyDown={e => { if (e.key === 'Enter') saveEdits(p); }}
                   style={{ width: "100%" }}
+                  placeholder="e.g. kingfisher-on-branch.jpg (extension optional)"
                 />
               </label>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => saveName(p)} style={{ flex: "0 0 auto" }}>Save</button>
-                <button onClick={() => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _name: undefined } : x))} style={{ flex: "0 0 auto" }}>Reset</button>
+                <button onClick={() => saveEdits(p)} style={{ flex: "0 0 auto" }}>Save</button>
+                <button onClick={() => setPhotos(prev => prev.map(x => x.id === p.id ? { ...x, _name: undefined, _title: undefined } : x))} style={{ flex: "0 0 auto" }}>Reset</button>
                 <div style={{ flex: 1 }} />
                 <button onClick={() => deletePhoto(p.id)} style={{ flex: "0 0 auto" }}>Delete</button>
               </div>

@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { extractAperture, formatShutter, viaCee } from "../utils";
+import { extractAperture, formatShutter, viaCee, baseName } from "../utils";
 
 export default function Photo({ photo, size = "small", layout = "grid" }) {
   console.log("PHOTO")
@@ -65,7 +65,7 @@ const sizes = layout === "single"
 
       {/* centred, grey caption */}
       <figcaption className="caption">
-        <span className="title">{title ?? name}</span>
+        <span className="title">{title ?? baseName(name) ?? "—"}</span>
         <span className="meta">
           {camera && `${camera} ${lens ?? ""}`}<br/>
           {formattedAperture && `f/${formattedAperture}`}

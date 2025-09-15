@@ -47,3 +47,10 @@ export function viaCee(url) {
     return url;
   }
 }
+
+/** Strip the final extension from a file name for display purposes */
+export function baseName(name) {
+  if (typeof name !== "string") return "";
+  const idx = name.lastIndexOf(".");
+  return idx > 0 ? name.slice(0, idx) : name;
+}
