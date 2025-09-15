@@ -86,6 +86,9 @@ jobs:
           UNIT
 
           cat > cee-nginx.conf <<'CONF'
+          # Cache storage for proxied S3 images
+          proxy_cache_path /var/cache/nginx/cee levels=1:2 keys_zone=cee_cache:10m max_size=1g inactive=7d use_temp_path=off;
+
           server {
             listen 80;
             listen [::]:80;
@@ -128,6 +131,14 @@ jobs:
               proxy_http_version 1.1;
               proxy_set_header Connection "";
               proxy_read_timeout 300s;
+              # Caching
+              proxy_cache cee_cache;
+              proxy_cache_valid 200 301 302 1h;
+              proxy_cache_valid 404 5m;
+              proxy_hide_header Set-Cookie;
+              proxy_ignore_headers Set-Cookie;
+              add_header X-Cache $upstream_cache_status;
+              add_header Cache-Control "public, max-age=31536000, immutable" always;
               # Map /images/<key> -> https://S3_HOST/<key>
               proxy_pass https://S3_HOST/;
             }
@@ -193,6 +204,7 @@ jobs:
             "sudo /srv/cee/venv/bin/pip install -r /srv/cee/app/requirements.txt",
             "sudo install -m 644 /tmp/cee-api.service /etc/systemd/system/cee-api.service",
             "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
+            "sudo install -d -m 755 /var/cache/nginx/cee",
             # Create/update basic auth file for /manage (user: hollings)
             "echo 'hollings:$apr1$IREq9XjJ$uvhAU3MXBFJD3h80Pc76c1' | sudo tee /etc/nginx/cee.htpasswd >/dev/null",
             "sudo chmod 640 /etc/nginx/cee.htpasswd",
