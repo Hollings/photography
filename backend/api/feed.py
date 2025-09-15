@@ -24,6 +24,18 @@ def _xml_escape(s: str) -> str:
     )
 
 
+def _to_cee_image(url: str) -> str:
+    # Map S3 URLs to cee.photography/images/<key> for nicer feed URLs
+    try:
+        from urllib.parse import urlparse
+        u = urlparse(url)
+        if "amazonaws.com" in (u.hostname or ""):
+            return f"https://cee.photography/images{u.path}"
+    except Exception:
+        pass
+    return url
+
+
 @router.get("/feed.xml")
 def feed(db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
@@ -49,7 +61,7 @@ def feed(db: Session = Depends(get_db)):
         guid = f"cee.photography:photo:{p.id}"
         pub  = _rfc2822(p.posted_at)
         # Prefer medium image; fall back to original
-        enclosure_url = p.medium_url or p.original_url
+        enclosure_url = _to_cee_image(p.medium_url or p.original_url)
 
         items.append(
             "".join([

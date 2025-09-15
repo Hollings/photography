@@ -31,7 +31,9 @@ export default function PhotoDetail() {
       <p><a href="/">← Back to gallery</a></p>
       <article>
         <h1 style={{ marginTop: 0 }}>{photo.title || baseName(photo.name)}</h1>
-        <img src={src} alt={photo.title || photo.name} style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }} />
+        <a href={full} target="_blank" rel="noopener noreferrer">
+          <img src={src} alt={photo.title || photo.name} style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }} />
+        </a>
         <section style={{ marginTop: "1rem", color: "#555" }}>
           <div><strong>Taken:</strong> {taken}</div>
           {photo.camera && (<div><strong>Camera:</strong> {photo.camera}</div>)}
@@ -50,4 +52,3 @@ export default function PhotoDetail() {
     </main>
   );
 }
-
