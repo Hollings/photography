@@ -42,6 +42,22 @@ jobs:
           fi
           echo "instance_id=$IID" >> $GITHUB_OUTPUT
 
+      - name: Check SSM connectivity
+        env:
+          IID: ${{ steps.discover.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          INFO=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=${IID}")
+          COUNT=$(echo "$INFO" | jq -r '.InstanceInformationList | length')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "SSM: instance not registered with SSM or no info returned for $IID" >&2
+            exit 1
+          fi
+          PING=$(echo "$INFO" | jq -r '.InstanceInformationList[0].PingStatus')
+          LAST=$(echo "$INFO" | jq -r '.InstanceInformationList[0].LastPingDateTime')
+          echo "SSM PingStatus=$PING LastPing=$LAST"
+          test "$PING" = "Online"
+
       - name: Set up Node (for SPA build)
         uses: actions/setup-node@v4
         with:
