@@ -185,6 +185,7 @@ export default function Management() {
 
   const handleDropOnItem = id => e => {
     e.preventDefault();
+    e.stopPropagation(); // prevent container onDrop (which moves to end)
     if (dragId == null) return;
     setPhotos(prev => {
       const next = moveByIds(prev, dragId, id);
@@ -202,6 +203,8 @@ export default function Management() {
 
   const handleDropOnContainerEnd = e => {
     e.preventDefault();
+    // Only handle drops directly on the container background (not bubbling from a card)
+    if (e.target !== e.currentTarget) return;
     if (dragId == null) return;
     setPhotos(prev => {
       const from = prev.findIndex(x => x.id === dragId);
