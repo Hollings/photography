@@ -54,6 +54,7 @@ export default function App() {
   return (
     <>
       <div className="toolbar">
+        <a className="subscribe" href="/feed.xml" target="_blank" rel="noopener noreferrer">Subscribe</a>
         <div className="toggle" role="tablist" aria-label="View layout">
           <button
             className={layout === "grid" ? "active" : ""}
