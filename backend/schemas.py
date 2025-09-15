@@ -19,6 +19,8 @@ class PhotoOut(BaseModel):
     aperture:      Optional[str] = None
     shutter_speed: Optional[str] = None
     focal_length:  Optional[str] = None
+    # Prefer EXIF capture time when available
+    taken_at:      Optional[datetime] = None
     created_at:    datetime
 
     class Config:

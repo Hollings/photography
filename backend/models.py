@@ -23,6 +23,14 @@ class Photo(Base):
     focal_length   = Column(String)
     created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Expose a virtual taken_at field to API consumers. For new photos we set
+    # created_at from EXIF DateTimeOriginal, so this returns that value. For
+    # older photos (uploaded before the change) this will be the upload time
+    # until a backfill is performed.
+    @property
+    def taken_at(self):  # type: ignore[override]
+        return self.created_at
+
 # Bootstrap tables (no‑op if already present)
 Base.metadata.create_all(bind=engine)
 

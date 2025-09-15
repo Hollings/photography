@@ -43,9 +43,10 @@ const sizes = layout === "single"
   // derived metadata
   const formattedShutter  = formatShutter(shutter_speed);
   const formattedAperture = extractAperture(lens || "");
+  const when = photo.taken_at || created_at;
   const taken =
-    created_at
-      ? new Date(created_at).toLocaleDateString(undefined, {
+    when
+      ? new Date(when).toLocaleDateString(undefined, {
           month: "long",
           year:  "numeric",
         })
