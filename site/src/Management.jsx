@@ -7,6 +7,7 @@ export default function Management() {
   const [dragActive, setDragActive] = useState(false);
   const [dragIdx,    setDragIdx]    = useState(null);
   const [uploads,    setUploads]    = useState([]); // [{id,name,progress,status,error}]
+  const UPLOAD_CONCURRENCY = 3; // set to 1 for strict sequential
 
   /* ----------------------------- helpers -------------------------------- */
   const refresh = useCallback(() => {
@@ -43,10 +44,28 @@ export default function Management() {
 
   const uploadFiles = files => {
     const list = Array.from(files);
-    const tasks = list.map((file, idx) => uploadOne(file, idx));
-    Promise.allSettled(tasks).then(() => {
-      // clear panel shortly after finishing
-      setTimeout(() => setUploads([]), 1000);
+    // bounded concurrency queue
+    let i = 0, inFlight = 0, done = 0;
+    return new Promise(resolve => {
+      const pump = () => {
+        while (inFlight < UPLOAD_CONCURRENCY && i < list.length) {
+          const file = list[i++];
+          inFlight++;
+          uploadOne(file, i-1)
+            .catch(() => {})
+            .finally(() => {
+              inFlight--; done++;
+              if (done === list.length) {
+                // clear panel shortly after finishing
+                setTimeout(() => setUploads([]), 1000);
+                resolve();
+              } else {
+                pump();
+              }
+            });
+        }
+      };
+      pump();
     });
   };
 
