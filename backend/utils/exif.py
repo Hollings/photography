@@ -230,9 +230,10 @@ def extract_exif(path: Path) -> Dict[str, Any]:
     # --------------------------------------------------------------------- #
     if "taken_at" not in meta:
         try:
-            # Read a reasonable chunk to find embedded XMP packet
+            # Read a larger chunk to find embedded XMP packet (some exports
+            # place XMP later in the file). 8 MB is still fast and safe.
             with path.open("rb") as fh:
-                blob = fh.read(1024 * 1024)  # 1 MB should cover XMP packet
+                blob = fh.read(8 * 1024 * 1024)
             try:
                 text = blob.decode("utf-8", errors="ignore")
             except Exception:
