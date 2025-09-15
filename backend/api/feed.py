@@ -30,6 +30,7 @@ def feed(db: Session = Depends(get_db)):
     q = (
         db.query(Photo)
           .filter(Photo.posted_at.isnot(None))
+          .filter(Photo.posted_at <= now)
           .order_by(Photo.posted_at.desc(), Photo.id.desc())
           .limit(50)
           .all()
@@ -78,4 +79,3 @@ def feed(db: Session = Depends(get_db)):
     ])
 
     return Response(content=rss, media_type="application/rss+xml; charset=utf-8")
-
