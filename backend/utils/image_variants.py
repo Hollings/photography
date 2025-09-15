@@ -24,6 +24,8 @@ class VariantBuilder:
             if img.format == "JPEG":
                 save_kwargs.update({"quality": 85, "optimize": True})
             exif_bytes = img.info.get("exif")
-
-            img.save(out_path,exif=exif_bytes, **save_kwargs)
+            if exif_bytes:
+                img.save(out_path, exif=exif_bytes, **save_kwargs)
+            else:
+                img.save(out_path, **save_kwargs)
         return out_path

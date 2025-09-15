@@ -1,7 +1,7 @@
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.exc import IntegrityError
@@ -30,7 +30,7 @@ def list_photos(db: Session = Depends(get_db)):
 @router.post("/photos", response_model=PhotoOut, status_code=201)
 def upload_photo(
     file: UploadFile = File(...),
-    title: str | None = Form(None),
+    title: Optional[str] = Form(None),
     sort_order: int   = Form(0),
     db: Session       = Depends(get_db),
 ):
@@ -50,7 +50,7 @@ def upload_photo(
     key_original = f"full/{original.name}"
     url_original = storage.upload_file(original, key_original)
 
-    urls: Dict[str, str | None] = {"small": None, "thumbnail": None}
+    urls: Dict[str, Optional[str]] = {"small": None, "thumbnail": None}
     for variant in variant_builder.VARIANT_SPECS:
         vfile = variant_builder.ensure_variant(original, variant)
         key   = f"{variant}/{vfile.name}"

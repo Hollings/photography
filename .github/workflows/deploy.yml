@@ -57,34 +57,10 @@ jobs:
           npm run build
           tar -C dist -czf ../site-dist.tar.gz .
 
-      - name: Patch backend for AL2023/Py3.9 + S3 defaults
+      - name: Package backend
         working-directory: backend
         run: |
           set -euo pipefail
-          # config.py: default region, instance-profile creds, no strict key requirement
-          sed -i "s|AWS_DEFAULT_REGION\", \"us‑east‑1\"|AWS_DEFAULT_REGION\", \"${AWS_REGION}\"|" config.py || true
-          sed -i "s|if not all(\[S3_BUCKET, AWS_KEY, AWS_SECRET\]):|if not all([S3_BUCKET]):|" config.py
-          sed -i "s|S3_BUCKET, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set|S3_BUCKET must be set (credentials from env/instance profile)|" config.py
-          sed -i "s|s3_client = boto3.client([\"']s3[\"'],[\s\S]*?)\n)|s3_client = boto3.client(\"s3\", region_name=os.getenv(\"AWS_DEFAULT_REGION\", \"${AWS_REGION}\"))|" config.py || true
-          # utils/storage.py: remove ACL
-          sed -i "s/\"ACL\": \"public-read\", //" utils/storage.py
-          # api/photos.py: Optional typing for Python 3.9
-          sed -i "s/from typing import Dict/from typing import Dict, Optional/" api/photos.py
-          sed -i "s/title: str | None/title: Optional[str]/" api/photos.py || true
-          sed -i "s/Dict\[str, str \| None\]/Dict[str, Optional[str]]/" api/photos.py || true
-          # utils/image_variants.py: guard exif=None when saving
-          sed -i "s/img.save(out_path,exif=exif_bytes, \*\*save_kwargs)/[ \$\(test -n \"\$exif_bytes\" \) ]/" utils/image_variants.py || true
-          # If sed didn't work for the EXIF guard, replace line via python for reliability
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('utils/image_variants.py')
-          t=p.read_text()
-          old='img.save(out_path,exif=exif_bytes, **save_kwargs)'
-          new='img.save(out_path, **save_kwargs) if exif_bytes is None else img.save(out_path, exif=exif_bytes, **save_kwargs)'
-          if old in t:
-              p.write_text(t.replace(old,new))
-          PY
-          # Package backend
           tar -czf ../backend.tar.gz .
 
       - name: Create cee units/config (to ship via S3)

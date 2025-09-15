@@ -19,7 +19,7 @@ class S3Storage:
             str(path),
             self.bucket,
             key,
-            ExtraArgs={"ACL": "public-read", "ContentType": mimetype or "application/octet-stream"},
+            ExtraArgs={"ContentType": mimetype or "application/octet-stream"},
         )
         return self.public_url(key)
 
