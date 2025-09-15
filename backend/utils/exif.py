@@ -3,6 +3,7 @@ from __future__ import annotations
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Dict, Optional
+from datetime import datetime
 
 import exifread
 from PIL import ExifTags, Image, ImageOps
@@ -127,6 +128,23 @@ def extract_exif(path: Path) -> Dict[str, Any]:
         if title_tag:
             meta["title"] = _decode_if_bytes(title_tag.values if hasattr(title_tag, "values") else title_tag)
 
+        # taken_at (DateTimeOriginal) -------------------------------------- #
+        try:
+            dt_tag = _first(tags, "EXIF DateTimeOriginal", "EXIF DateTimeDigitized", "Image DateTime")
+            if dt_tag:
+                raw = dt_tag.values[0] if hasattr(dt_tag, "values") else dt_tag
+                s = _decode_if_bytes(raw)
+                if s and len(s) >= 19:  # format like 'YYYY:MM:DD HH:MM:SS'
+                    s = s.replace("\x00", "").strip()
+                    for fmt in ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+                        try:
+                            meta["taken_at"] = datetime.strptime(s, fmt)
+                            break
+                        except Exception:
+                            continue
+        except Exception:  # pragma: no cover
+            pass
+
         # If we’ve got at least camera or title we can return now
         if meta:
             return meta
@@ -186,5 +204,25 @@ def extract_exif(path: Path) -> Dict[str, Any]:
             if (decoded := _decode_if_bytes(val)):
                 meta["title"] = decoded
                 break
+
+    # taken_at -------------------------------------------------------------- #
+    try:
+        dt_raw = (
+            tag_map.get("DateTimeOriginal")
+            or tag_map.get("DateTime")
+            or tag_map.get("DateTimeDigitized")
+        )
+        if dt_raw:
+            s = _decode_if_bytes(dt_raw)
+            if s and len(s) >= 19:
+                s = s.replace("\x00", "").strip()
+                for fmt in ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+                    try:
+                        meta["taken_at"] = datetime.strptime(s, fmt)
+                        break
+                    except Exception:
+                        continue
+    except Exception:  # pragma: no cover
+        pass
 
     return meta

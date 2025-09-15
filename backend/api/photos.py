@@ -52,9 +52,9 @@ def upload_photo(
             for chunk in iter(lambda: file.file.read(8192), b""):
                 fh.write(chunk)
 
-        sha1  = file_sha1(original)
-        size  = original.stat().st_size
-        exif  = extract_exif(original)
+    sha1  = file_sha1(original)
+    size  = original.stat().st_size
+    exif  = extract_exif(original)
         print("DEBUG EXIF:", exif)
         if title is not None:
             exif["title"] = title
@@ -71,6 +71,8 @@ def upload_photo(
         except (UnidentifiedImageError, OSError):
             raise HTTPException(status_code=415, detail="Unreadable image data or unsupported type.")
 
+        # Prefer EXIF DateTimeOriginal for created_at if present
+        created = exif.get("taken_at") or datetime.utcnow()
         photo = Photo(
             name           = original.name,
             sha1           = sha1,
@@ -80,7 +82,7 @@ def upload_photo(
             small_url      = urls["small"],
             thumbnail_url  = urls["thumbnail"],
             sort_order     = sort_order,
-            created_at     = datetime.utcnow(),
+            created_at     = created,
             **{k: exif.get(k) for k in (
                 "title", "camera", "lens", "iso",
                 "aperture", "shutter_speed", "focal_length",
