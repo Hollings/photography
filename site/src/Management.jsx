@@ -6,6 +6,7 @@ export default function Management() {
   const [title, setTitle]   = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [dragIdx,    setDragIdx]    = useState(null);
+  const [uploads,    setUploads]    = useState([]); // [{id,name,progress,status,error}]
 
   /* ----------------------------- helpers -------------------------------- */
   const refresh = useCallback(() => {
@@ -41,15 +42,49 @@ export default function Management() {
   };
 
   const uploadFiles = files => {
-    Array.from(files).forEach(file => {
-      const fd = new FormData();
-      fd.append("file", file);
-      if (title) fd.append("title", title);
-      fetch("/photos", { method: "POST", body: fd })
-        .then(refresh)
-        .catch(console.error);
+    const list = Array.from(files);
+    const tasks = list.map((file, idx) => uploadOne(file, idx));
+    Promise.allSettled(tasks).then(() => {
+      // clear panel shortly after finishing
+      setTimeout(() => setUploads([]), 1000);
     });
   };
+
+  const uploadOne = (file, idx) => new Promise((resolve) => {
+    const id = `${Date.now()}-${idx}-${Math.random().toString(36).slice(2,8)}`;
+    const rec = { id, name: file.name, progress: 0, status: "uploading", error: null };
+    setUploads(u => [...u, rec]);
+
+    const fd = new FormData();
+    fd.append("file", file);
+    if (title) fd.append("title", title);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/photos");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setUploads(u => u.map(x => x.id === id ? { ...x, progress: pct } : x));
+      }
+    };
+    xhr.upload.onload = () => {
+      setUploads(u => u.map(x => x.id === id ? { ...x, status: "processing", progress: 100 } : x));
+    };
+    xhr.onerror = () => {
+      setUploads(u => u.map(x => x.id === id ? { ...x, status: "error", error: "Network error" } : x));
+      resolve();
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploads(u => u.map(x => x.id === id ? { ...x, status: "done" } : x));
+        refresh();
+      } else {
+        setUploads(u => u.map(x => x.id === id ? { ...x, status: "error", error: `HTTP ${xhr.status}` } : x));
+      }
+      resolve();
+    };
+    xhr.send(fd);
+  });
 
   const persistOrder = order => {
     order.forEach((p, idx) => {
@@ -114,6 +149,40 @@ export default function Management() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
       <h1>Photo Management</h1>
+
+      {/* ---------- uploads panel --------------------------------------- */}
+      {uploads.length > 0 && (
+        <section style={{
+          background: "#fff",
+          border: "1px solid #eee",
+          borderRadius: 8,
+          padding: "1rem",
+          marginBottom: "1.5rem",
+          boxShadow: "0 1px 2px rgba(0,0,0,.04)"
+        }}>
+          <div style={{ marginBottom: 8, fontWeight: 600 }}>
+            Uploading {uploads.filter(u => u.status !== 'done').length} / {uploads.length}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {uploads.map(u => (
+              <div key={u.id} style={{ fontSize: ".9rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>{u.name}</span>
+                  <span style={{ color: "#666" }}>
+                    {u.status === 'uploading' && `${u.progress}%`}
+                    {u.status === 'processing' && 'processing…'}
+                    {u.status === 'done' && 'done'}
+                    {u.status === 'error' && (u.error || 'error')}
+                  </span>
+                </div>
+                <div style={{ height: 6, background: "#f1f1f1", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ width: `${u.progress}%`, height: "100%", background: u.status === 'error' ? '#e57373' : '#4caf50', transition: 'width .2s' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ---------- upload zone ------------------------------------------ */}
       <section
