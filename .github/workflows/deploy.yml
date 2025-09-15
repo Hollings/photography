@@ -1,0 +1,226 @@
+name: Deploy cee.photography
+
+concurrency:
+  group: cee-deploy
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main, master ]
+
+env:
+  AWS_REGION: us-west-1
+  INSTANCE_TAG_NAME: japanesebird-web
+  ASSETS_BUCKET: japanesebirdcookingspaghetti-assets
+  DOMAIN: cee.photography
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Discover EC2 target
+        id: discover
+        run: |
+          set -euo pipefail
+          IID=$(aws ec2 describe-instances \
+            --filters Name=tag:Name,Values=${INSTANCE_TAG_NAME} Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          if [ "$IID" = "None" ] || [ -z "$IID" ]; then
+            echo "No running instance with tag Name=${INSTANCE_TAG_NAME}" >&2
+            exit 1
+          fi
+          echo "instance_id=$IID" >> $GITHUB_OUTPUT
+
+      - name: Set up Node (for SPA build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+          cache-dependency-path: 'site/package-lock.json'
+
+      - name: Build frontend (Vite)
+        working-directory: site
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          tar -C dist -czf ../site-dist.tar.gz .
+
+      - name: Patch backend for AL2023/Py3.9 + S3 defaults
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          # config.py: default region, instance-profile creds, no strict key requirement
+          sed -i "s|AWS_DEFAULT_REGION\", \"us‑east‑1\"|AWS_DEFAULT_REGION\", \"${AWS_REGION}\"|" config.py || true
+          sed -i "s|if not all(\[S3_BUCKET, AWS_KEY, AWS_SECRET\]):|if not all([S3_BUCKET]):|" config.py
+          sed -i "s|S3_BUCKET, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set|S3_BUCKET must be set (credentials from env/instance profile)|" config.py
+          sed -i "s|s3_client = boto3.client([\"']s3[\"'],[\s\S]*?)\n)|s3_client = boto3.client(\"s3\", region_name=os.getenv(\"AWS_DEFAULT_REGION\", \"${AWS_REGION}\"))|" config.py || true
+          # utils/storage.py: remove ACL
+          sed -i "s/\"ACL\": \"public-read\", //" utils/storage.py
+          # api/photos.py: Optional typing for Python 3.9
+          sed -i "s/from typing import Dict/from typing import Dict, Optional/" api/photos.py
+          sed -i "s/title: str | None/title: Optional[str]/" api/photos.py || true
+          sed -i "s/Dict\[str, str \| None\]/Dict[str, Optional[str]]/" api/photos.py || true
+          # utils/image_variants.py: guard exif=None when saving
+          sed -i "s/img.save(out_path,exif=exif_bytes, \*\*save_kwargs)/[ \$\(test -n \"\$exif_bytes\" \) ]/" utils/image_variants.py || true
+          # If sed didn't work for the EXIF guard, replace line via python for reliability
+          python - <<'PY'
+from pathlib import Path
+p=Path('utils/image_variants.py')
+t=p.read_text()
+old='img.save(out_path,exif=exif_bytes, **save_kwargs)'
+new='img.save(out_path, **save_kwargs) if exif_bytes is None else img.save(out_path, exif=exif_bytes, **save_kwargs)'
+if old in t:
+    p.write_text(t.replace(old,new))
+PY
+          # Package backend
+          tar -czf ../backend.tar.gz .
+
+      - name: Create cee units/config (to ship via S3)
+        run: |
+          set -euo pipefail
+          cat > cee-api.service <<'UNIT'
+          [Unit]
+          Description=cee.photography FastAPI service
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=ec2-user
+          Group=nginx
+          EnvironmentFile=-/srv/cee/.env
+          WorkingDirectory=/srv/cee/app
+          ExecStart=/srv/cee/venv/bin/uvicorn main:app --host 127.0.0.1 --port 9002 --proxy-headers --forwarded-allow-ips='*'
+          Restart=always
+          RestartSec=3
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+
+          cat > cee-nginx.conf <<'CONF'
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name DOMAIN WWW_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://DOMAIN$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name WWW_DOMAIN;
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            return 301 https://DOMAIN$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name DOMAIN;
+            root /var/www/cee/site;
+            index index.html;
+            # SPA fallback
+            location / { try_files $uri /index.html; }
+            # Backend routes
+            location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
+            location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+          }
+          CONF
+          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx.conf
+          sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx.conf
+
+      - name: Upload deploy artifacts to S3
+        id: s3
+        run: |
+          set -euo pipefail
+          BACKEND_KEY=cee/deploy/backend-${GITHUB_SHA}.tar.gz
+          FRONTEND_KEY=cee/deploy/site-${GITHUB_SHA}.tar.gz
+          CONFIG_UNIT_KEY=cee/deploy/cee-api-${GITHUB_SHA}.service
+          CONFIG_NGX_KEY=cee/deploy/cee-nginx-${GITHUB_SHA}.conf
+          aws s3 cp backend.tar.gz      s3://${ASSETS_BUCKET}/$BACKEND_KEY
+          aws s3 cp site-dist.tar.gz    s3://${ASSETS_BUCKET}/$FRONTEND_KEY
+          aws s3 cp cee-api.service     s3://${ASSETS_BUCKET}/$CONFIG_UNIT_KEY
+          aws s3 cp cee-nginx.conf      s3://${ASSETS_BUCKET}/$CONFIG_NGX_KEY
+          echo "backend_key=$BACKEND_KEY" >> $GITHUB_OUTPUT
+          echo "frontend_key=$FRONTEND_KEY" >> $GITHUB_OUTPUT
+          echo "unit_key=$CONFIG_UNIT_KEY" >> $GITHUB_OUTPUT
+          echo "nginx_key=$CONFIG_NGX_KEY" >> $GITHUB_OUTPUT
+
+      - name: Deploy via SSM
+        env:
+          IID: ${{ steps.discover.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          BUCKET=${ASSETS_BUCKET}
+          REGION=${AWS_REGION}
+          BK=${{ steps.s3.outputs.backend_key }}
+          SK=${{ steps.s3.outputs.frontend_key }}
+          UK=${{ steps.s3.outputs.unit_key }}
+          NK=${{ steps.s3.outputs.nginx_key }}
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$IID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "cee deploy ${GITHUB_SHA}" \
+            --parameters commands='[
+              "set -euo pipefail",
+              "sudo dnf -y install awscli jq || true",
+              "cd /home/ec2-user",
+              "aws s3 cp s3://'"$BUCKET"'/'"$BK"' /tmp/backend.tar.gz",
+              "aws s3 cp s3://'"$BUCKET"'/'"$SK"' /tmp/site-dist.tar.gz",
+              "aws s3 cp s3://'"$BUCKET"'/'"$UK"' /tmp/cee-api.service",
+              "aws s3 cp s3://'"$BUCKET"'/'"$NK"' /tmp/cee-nginx.conf",
+              "sudo mkdir -p /srv/cee/app /srv/cee/data /var/www/cee/site",
+              "if [ ! -d /srv/cee/venv ]; then sudo python3 -m venv /srv/cee/venv; fi",
+              "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
+              "sudo /srv/cee/venv/bin/pip install --upgrade pip",
+              "sudo /srv/cee/venv/bin/pip install -r /srv/cee/app/requirements.txt",
+              "sudo install -m 644 /tmp/cee-api.service /etc/systemd/system/cee-api.service",
+              "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
+              "sudo install -d -m 775 -o ec2-user -g nginx /srv/cee/data",
+              "# Ensure env defaults exist",
+              "ENV=/srv/cee/.env; sudo touch $ENV; sudo chown ec2-user:nginx $ENV",
+              "grep -q '^DATABASE_URL=' $ENV || echo 'DATABASE_URL=sqlite:////srv/cee/data/photos.db' | sudo tee -a $ENV >/dev/null",
+              "grep -q '^AWS_DEFAULT_REGION=' $ENV || echo 'AWS_DEFAULT_REGION='"$REGION" | sudo tee -a $ENV >/dev/null",
+              "grep -q '^S3_BUCKET=' $ENV || echo 'S3_BUCKET='"$BUCKET" | sudo tee -a $ENV >/dev/null",
+              "sudo systemctl daemon-reload",
+              "sudo systemctl enable cee-api.service",
+              "sudo systemctl restart cee-api.service",
+              "sudo tar -xzf /tmp/site-dist.tar.gz -C /var/www/cee/site",
+              "sudo chown -R ec2-user:nginx /var/www/cee/site",
+              "sudo nginx -t",
+              "sudo systemctl reload nginx || sudo systemctl restart nginx"
+            ]' \
+            --query 'Command.CommandId' --output text)
+          echo "SSM Command: $CMD_ID"
+          aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$IID"
+          STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$IID" --query Status --output text)
+          echo "SSM status: $STATUS"
+          test "$STATUS" = "Success"
+
+      - name: Cleanup S3 artifacts
+        if: ${{ always() && steps.s3.outputs.backend_key }}
+        run: |
+          set -euo pipefail
+          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.backend_key }} || true
+          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.frontend_key }} || true
+          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.unit_key }} || true
+          aws s3 rm s3://${ASSETS_BUCKET}/${{ steps.s3.outputs.nginx_key }} || true
+
