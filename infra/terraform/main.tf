@@ -39,7 +39,10 @@ resource "aws_route53_record" "cee_apex_a" {
   ttl     = 60
   records = ["0.0.0.0"] # placeholder; import will override
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 resource "aws_route53_record" "cee_www_cname" {
@@ -49,7 +52,10 @@ resource "aws_route53_record" "cee_www_cname" {
   ttl     = 300
   records = [local.cee_zone_name]
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 # Apex A and www CNAME for hollings.photography
@@ -60,7 +66,10 @@ resource "aws_route53_record" "hol_apex_a" {
   ttl     = 300
   records = ["0.0.0.0"] # placeholder
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 resource "aws_route53_record" "hol_www_cname" {
@@ -70,7 +79,10 @@ resource "aws_route53_record" "hol_www_cname" {
   ttl     = 300
   records = [local.hollings_zone_name]
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 # TXT example: _atproto (if present)
@@ -81,20 +93,29 @@ resource "aws_route53_record" "cee_atproto" {
   ttl     = 300
   records = ["\"did=did:plc:xb2urvqt5f4zzccjs46hysbf\""]
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 # S3 buckets (images + artifacts)
 resource "aws_s3_bucket" "assets" {
   bucket = local.assets_bucket
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 resource "aws_s3_bucket" "artifacts" {
   bucket = local.artifacts_bucket
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 # IAM role used by the EC2 instance (import-only stub)
@@ -102,7 +123,10 @@ resource "aws_iam_role" "ec2_role" {
   name               = local.ec2_role_name
   assume_role_policy = jsonencode({}) # placeholder; real policy managed outside until codified
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 # EC2 instance (import-only stub)
