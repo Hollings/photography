@@ -114,7 +114,7 @@ def feed(request: Request, db: Session = Depends(get_db)):
                 "<item>",
                 f"<title>{_xml_escape(title)}</title>",
                 f"<link>{_xml_escape(link)}</link>",
-                f"<guid isPermaLink=\"false\">{_xml_escape(guid)}</guid>",
+                f"<guid isPermaLink=\"true\">{_xml_escape(guid)}</guid>",
                 f"<pubDate>{pub}</pubDate>",
                 f"<description>{_xml_escape(desc)}</description>",
                 f"<enclosure url=\"{_xml_escape(enclosure_url)}\" length=\"{length}\" type=\"{_xml_escape(ctype)}\" />",
