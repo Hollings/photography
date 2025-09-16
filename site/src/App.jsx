@@ -7,7 +7,7 @@ const BATCH = 10;
 export default function App() {
   const [all,  setAll]  = useState([]);
   const [show, setShow] = useState([]);
-  const [layout, setLayout] = useState(() => localStorage.getItem("cee_layout") || "grid");
+  const [layout, setLayout] = useState(() => localStorage.getItem("cee_layout") || "single");
   const next   = useRef(0);
   const sent   = useRef(null);
 
