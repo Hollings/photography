@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Tuple
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, Request
 from sqlalchemy.orm import Session
 import mimetypes
 from urllib.parse import urlparse
@@ -60,8 +60,12 @@ def _mime_for_key(key: str) -> str:
 
 
 @router.get("/feed.xml")
-def feed(db: Session = Depends(get_db)):
+def feed(request: Request, db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
+    # Determine scheme/host from proxy headers or request URL
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+    host  = request.headers.get("host") or request.url.netloc or "cee.photography"
+    base  = f"{proto}://{host}"
     q = (
         db.query(Photo)
           .filter(Photo.posted_at.isnot(None))
@@ -78,14 +82,22 @@ def feed(db: Session = Depends(get_db)):
             continue
         if last_build is None or p.posted_at > last_build:
             last_build = p.posted_at
-        link = f"https://cee.photography/p/{p.id}"
+        link = f"{base}/p/{p.id}"
         title = p.post_title or p.title or p.name
         desc = p.post_summary or ""
-        guid = f"cee.photography:photo:{p.id}"
+        guid = link  # per-host GUID using permalink
         pub  = _rfc2822(p.posted_at)
         # Prefer medium image; fall back to original
         chosen_url = p.medium_url or p.original_url
-        enclosure_url = _to_cee_image(chosen_url)
+        # Map to current host for nicer URLs
+        try:
+            u = urlparse(chosen_url)
+            if "amazonaws.com" in (u.hostname or ""):
+                enclosure_url = f"{base}/images{u.path}"
+            else:
+                enclosure_url = chosen_url
+        except Exception:
+            enclosure_url = chosen_url
         # Determine length and content-type via S3 HEAD (best-effort)
         length = 0
         ctype  = _mime_for_key(urlparse(chosen_url).path)
@@ -116,9 +128,9 @@ def feed(db: Session = Depends(get_db)):
         "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">",
         "<channel>",
         "<title>CEE Photography</title>",
-        "<link>https://cee.photography/</link>",
+        f"<link>{_xml_escape(base)}/</link>",
         "<description>Curated photos by CEE</description>",
-        "<atom:link href=\"https://cee.photography/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />",
+        f"<atom:link href=\"{_xml_escape(base)}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />",
         f"<lastBuildDate>{_rfc2822(last_build)}</lastBuildDate>",
         *items,
         "</channel>",
