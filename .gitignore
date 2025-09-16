@@ -20,3 +20,9 @@ Gemfile.lock
 .env
 .idea
 photos
+
+# Terraform local files
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+infra/terraform/terraform.tfstate
+infra/terraform/terraform.tfstate.backup
