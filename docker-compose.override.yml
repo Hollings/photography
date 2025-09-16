@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  backend:
+    # Mount host AWS credentials into the container for boto3 default provider chain
+    volumes:
+      - ~/.aws:/root/.aws:ro
+    environment:
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+      - AWS_REGION=${AWS_REGION:-us-west-1}
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-west-1}
+

@@ -1,0 +1,6 @@
+{"commands": [
+  "set -e",
+  "aws s3 cp s3://cee-artifacts-prod-780997964150-usw1/cee/deploy/backend-40b8ed4c9f2191d69974e87d7327be2c0a682758.tar.gz /tmp/backend.tar.gz",
+  "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
+  "sudo systemctl restart cee-api.service"
+]}
