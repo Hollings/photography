@@ -75,6 +75,17 @@ Next steps:
 - [ ] Init backend; run import script (dry-run first), then with APPLY=1
 - [ ] terraform plan (expect no changes); adjust stubs if any drift shows
 
+#### CI Workflow
+- Added GitHub Actions workflow: `.github/workflows/infra-import-plan.yml`
+  - Steps: bootstrap state (S3/Dynamo), terraform init, import (Route53 + S3), plan
+  - Trigger: Manual (workflow_dispatch) or push to `infra/terraform/**`
+  - Uses repo AWS secrets (same as deploy) and region `us-west-1`
+  - Artifacts: uploads plan files (plan.txt, plan-full.txt)
+
+To run:
+1) In GitHub Actions, run “Infra Import and Plan” (keep apply_imports=true)
+2) Review plan artifacts; we expect zero changes
+
 ### Import commands (dry‑run output)
 
 ```
