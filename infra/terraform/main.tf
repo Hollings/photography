@@ -37,11 +37,10 @@ resource "aws_route53_record" "cee_apex_a" {
   name    = local.cee_zone_name
   type    = "A"
   ttl     = 60
-  records = ["0.0.0.0"] # placeholder; import will override
+  records = ["52.52.3.178"]
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
   }
 }
 
@@ -50,11 +49,10 @@ resource "aws_route53_record" "cee_www_a" {
   name    = "www.${local.cee_zone_name}"
   type    = "A"
   ttl     = 60
-  records = ["0.0.0.0"]
+  records = ["52.52.3.178"]
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
   }
 }
 
@@ -64,11 +62,10 @@ resource "aws_route53_record" "hol_apex_a" {
   name    = local.hollings_zone_name
   type    = "A"
   ttl     = 300
-  records = ["0.0.0.0"] # placeholder
+  records = ["52.52.3.178"]
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
   }
 }
 
@@ -81,7 +78,6 @@ resource "aws_route53_record" "hol_www_cname" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
   }
 }
 
