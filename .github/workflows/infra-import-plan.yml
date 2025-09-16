@@ -1,0 +1,76 @@
+name: Infra Import and Plan
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_imports:
+        description: "Run terraform import (true) or just print commands (false)"
+        required: false
+        default: "true"
+  push:
+    paths:
+      - 'infra/terraform/**'
+      - '.github/workflows/infra-import-plan.yml'
+
+env:
+  AWS_REGION: us-west-1
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Bootstrap remote state (S3 + DynamoDB)
+        working-directory: source/photography/infra/terraform/bootstrap
+        run: |
+          set -euo pipefail
+          terraform init
+          terraform apply -auto-approve \
+            -var "state_bucket_name=cee-tf-state-usw1" \
+            -var "lock_table_name=cee-tf-locks"
+
+      - name: Terraform init with backend
+        working-directory: source/photography/infra/terraform
+        run: |
+          set -euo pipefail
+          terraform init -backend-config=backend.hcl
+
+      - name: Import Route53 + S3 into state
+        working-directory: source/photography/infra/terraform
+        env:
+          APPLY: ${{ github.event.inputs.apply_imports || 'true' }}
+        run: |
+          set -euo pipefail
+          chmod +x ./import_route53_s3.sh
+          ./import_route53_s3.sh
+
+      - name: Terraform plan
+        working-directory: source/photography/infra/terraform
+        run: |
+          set -euo pipefail
+          terraform plan -no-color -out=tfplan.out | tee plan.txt || true
+          terraform show -no-color tfplan.out > plan-full.txt || true
+
+      - name: Upload plan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            source/photography/infra/terraform/plan.txt
+            source/photography/infra/terraform/plan-full.txt
+
