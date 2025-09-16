@@ -1,66 +1,100 @@
-name: Infra Import and Plan
+name: infra-import-plan
 
 on:
   workflow_dispatch:
     inputs:
       apply_imports:
-        description: "Run terraform import (true) or just print commands (false)"
-        required: false
-        default: "true"
+        description: Run terraform import (APPLY=1)
+        required: true
+        default: true
+        type: boolean
   push:
+    branches: [ main ]
     paths:
       - 'infra/terraform/**'
-      - '.github/workflows/infra-import-plan.yml'
-
-env:
-  AWS_REGION: us-west-1
+      - 'source/photography/.github/workflows/infra-import-plan.yml'
 
 jobs:
-  terraform:
+  import_and_plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+
+    # All steps run in infra/terraform as requested
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/terraform
+
+    env:
+      # Repo secrets and region
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-west-1
+      AWS_REGION: us-west-1
+      TF_IN_AUTOMATION: "1"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.7.5
+          terraform_version: 1.6.6
 
-      - name: Terraform init with backend
-        working-directory: infra/terraform
+      - name: Verify or install AWS CLI v2
         run: |
-          set -euo pipefail
-          terraform init -backend-config=backend.hcl
+          if ! command -v aws >/dev/null 2>&1; then
+            echo "Installing AWS CLI v2"
+            curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            sudo ./aws/install
+          fi
+          aws --version
 
-      - name: Import Route53 + S3 into state
-        working-directory: infra/terraform
+      - name: Show caller identity
+        run: aws sts get-caller-identity
+
+      - name: Terraform init with S3 backend
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Ensure import script is executable
+        run: chmod +x ./import_route53_s3.sh
+
+      - name: Import commands (dry run)
+        run: ./import_route53_s3.sh
+
+      - name: Execute imports when manual dispatch
+        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.apply_imports == true || github.event.inputs.apply_imports == 'true')
         env:
-          APPLY: ${{ github.event.inputs.apply_imports || 'true' }}
-        run: |
-          set -euo pipefail
-          chmod +x ./import_route53_s3.sh
-          ./import_route53_s3.sh
+          APPLY: "1"
+        run: ./import_route53_s3.sh
 
-      - name: Terraform plan
-        working-directory: infra/terraform
+      - name: Terraform plan (detailed exit code)
+        id: plan
         run: |
-          set -euo pipefail
-          terraform plan -no-color -out=tfplan.out | tee plan.txt || true
-          terraform show -no-color tfplan.out > plan-full.txt || true
+          set +e
+          terraform plan -detailed-exitcode -no-color -out plan.tfplan
+          exit_code=$?
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          terraform show -no-color plan.tfplan > plan-full.txt
+          # single-line summary
+          grep -E "^Plan:" -m1 plan-full.txt > plan.txt || echo "Plan summary unavailable" > plan.txt
+          # always continue so we can upload artifacts even if changes exist
+          exit 0
 
       - name: Upload plan artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: |
             infra/terraform/plan.txt
             infra/terraform/plan-full.txt
+            infra/terraform/plan.tfplan
+          if-no-files-found: error
+
+      - name: Fail build if plan has changes
+        if: steps.plan.outputs.exit_code == '2'
+        run: |
+          echo "Terraform reported changes. See artifacts for details."
+          exit 1

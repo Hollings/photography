@@ -1,0 +1,456 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+terraform/
+  bootstrap/
+    main.tf
+  backend.hcl
+  import_route53_s3.sh
+  main.tf
+  Makefile
+  providers.tf
+  README.md
+  versions.tf
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="terraform/bootstrap/main.tf">
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+  }
+}
+
+variable "aws_region" {
+  type    = string
+  default = "us-west-1"
+}
+
+variable "state_bucket_name" {
+  type        = string
+  description = "Name for the Terraform state bucket"
+}
+
+variable "lock_table_name" {
+  type        = string
+  description = "Name for the DynamoDB lock table"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_s3_bucket" "tfstate" {
+  bucket        = var.state_bucket_name
+  force_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_s3_bucket_versioning" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_dynamodb_table" "locks" {
+  name         = var.lock_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+output "state_bucket" { value = aws_s3_bucket.tfstate.bucket }
+output "lock_table"  { value = aws_dynamodb_table.locks.name }
+</file>
+
+<file path="terraform/backend.hcl">
+# Remote state backend (fill with your actual bucket/table before init)
+bucket = "cee-tf-state-780997964150-usw1"
+key    = "prod/terraform.tfstate"
+region = "us-west-1"
+encrypt = true
+</file>
+
+<file path="terraform/import_route53_s3.sh">
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Imports Route53 zones/records and S3 buckets into Terraform state.
+# Dry-run by default; set APPLY=1 to execute imports.
+
+AWS_REGION=${AWS_REGION:-us-west-1}
+APPLY=${APPLY:-0}
+
+say() { printf "\033[1;34m%s\033[0m\n" "$*"; }
+do_or_echo() {
+  if [[ "$APPLY" == "1" ]]; then
+    eval "$1"
+  else
+    echo "$1"
+  fi
+}
+
+say "Discovering Route53 zone IDs..."
+CEE_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name cee.photography --query 'HostedZones[0].Id' --output text)
+HOL_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name hollings.photography --query 'HostedZones[0].Id' --output text)
+if [[ -z "$CEE_ZONE" || -z "$HOL_ZONE" || "$CEE_ZONE" == "None" || "$HOL_ZONE" == "None" ]]; then
+  echo "ERROR: Could not resolve hosted zone IDs."
+  exit 1
+fi
+
+say "Importing zones..."
+do_or_echo "terraform import aws_route53_zone.cee ${CEE_ZONE}"
+do_or_echo "terraform import aws_route53_zone.hollings ${HOL_ZONE}"
+
+say "Importing cee.photography records..."
+do_or_echo "terraform import aws_route53_record.cee_apex_a ${CEE_ZONE}_cee.photography._A"
+do_or_echo "terraform import aws_route53_record.cee_www_cname ${CEE_ZONE}_www.cee.photography._CNAME"
+do_or_echo "terraform import aws_route53_record.cee_atproto ${CEE_ZONE}__atproto.cee.photography._TXT"
+
+say "Importing hollings.photography records..."
+do_or_echo "terraform import aws_route53_record.hol_apex_a ${HOL_ZONE}_hollings.photography._A"
+do_or_echo "terraform import aws_route53_record.hol_www_cname ${HOL_ZONE}_www.hollings.photography._CNAME"
+
+say "Importing S3 buckets..."
+do_or_echo "terraform import aws_s3_bucket.assets japanesebirdcookingspaghetti-assets"
+do_or_echo "terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1"
+
+say "Done. If this was a dry run, re-run with APPLY=1 to execute."
+
+say "Importing IAM role and EC2 instance (stubs)..."
+do_or_echo "terraform import aws_iam_role.ec2_role jb-ec2-ssm-role"
+do_or_echo "terraform import aws_instance.web i-04bd4457fe443c716"
+do_or_echo "terraform import aws_security_group.web_sg sg-06af0ab526b6b570b"
+do_or_echo "terraform import aws_ebs_volume.root vol-00fbbd879177c3638"
+</file>
+
+<file path="terraform/main.tf">
+# Import-first resource stubs. Import existing resources, then run plan.
+# These blocks are protected with prevent_destroy and ignore_changes to avoid
+# accidental drift. Remove ignore_changes gradually as you codify exact config.
+
+locals {
+  cee_zone_name      = "cee.photography"
+  hollings_zone_name = "hollings.photography"
+  assets_bucket      = "japanesebirdcookingspaghetti-assets"
+  artifacts_bucket   = "cee-artifacts-prod-780997964150-usw1"
+  ec2_instance_id    = "i-04bd4457fe443c716"
+  ec2_role_name      = "jb-ec2-ssm-role"
+  ec2_sg_id          = "sg-06af0ab526b6b570b"
+  ec2_volume_id      = "vol-00fbbd879177c3638"
+}
+
+resource "aws_route53_zone" "cee" {
+  name = local.cee_zone_name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_zone" "hollings" {
+  name = local.hollings_zone_name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# Apex A and www CNAME for cee.photography
+resource "aws_route53_record" "cee_apex_a" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = local.cee_zone_name
+  type    = "A"
+  ttl     = 60
+  records = ["0.0.0.0"] # placeholder; import will override
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_record" "cee_www_cname" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = "www.${local.cee_zone_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [local.cee_zone_name]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# Apex A and www CNAME for hollings.photography
+resource "aws_route53_record" "hol_apex_a" {
+  zone_id = aws_route53_zone.hollings.zone_id
+  name    = local.hollings_zone_name
+  type    = "A"
+  ttl     = 300
+  records = ["0.0.0.0"] # placeholder
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_record" "hol_www_cname" {
+  zone_id = aws_route53_zone.hollings.zone_id
+  name    = "www.${local.hollings_zone_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [local.hollings_zone_name]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# TXT example: _atproto (if present)
+resource "aws_route53_record" "cee_atproto" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = "_atproto.${local.cee_zone_name}"
+  type    = "TXT"
+  ttl     = 300
+  records = ["\"did=did:plc:xb2urvqt5f4zzccjs46hysbf\""]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# S3 buckets (images + artifacts)
+resource "aws_s3_bucket" "assets" {
+  bucket = local.assets_bucket
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_s3_bucket" "artifacts" {
+  bucket = local.artifacts_bucket
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# IAM role used by the EC2 instance (import-only stub)
+resource "aws_iam_role" "ec2_role" {
+  name               = local.ec2_role_name
+  assume_role_policy = jsonencode({}) # placeholder; real policy managed outside until codified
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# EC2 instance (import-only stub)
+resource "aws_instance" "web" {
+  ami                    = "ami-xxxxxxxx"   # placeholder, ignored
+  instance_type          = "t3.micro"       # placeholder, ignored
+  disable_api_termination = false
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Security group protecting the instance (import-only stub)
+resource "aws_security_group" "web_sg" {
+  name   = "cee-web-sg"
+  vpc_id = "vpc-xxxxxxxx" # placeholder
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Root EBS volume (import-only stub)
+resource "aws_ebs_volume" "root" {
+  availability_zone = "us-west-1a"
+  size              = 8
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+</file>
+
+<file path="terraform/Makefile">
+SHELL := /bin/bash
+TFDIR := $(shell pwd)
+
+.PHONY: help bootstrap init import plan
+
+help:
+	@echo "Targets:"
+	@echo "  bootstrap  - create remote state S3 bucket + DynamoDB lock table (run once)"
+	@echo "  init       - terraform init with backend.hcl"
+	@echo "  import     - show import commands (set APPLY=1 to execute)"
+	@echo "  plan       - terraform plan (requires imports and backend configured)"
+
+bootstrap:
+	cd bootstrap && terraform init && terraform apply -auto-approve \
+	  -var "state_bucket_name=cee-tf-state-780997964150-usw1" \
+	  -var "lock_table_name=cee-tf-locks"
+
+init:
+	terraform init -backend-config=backend.hcl
+
+import:
+	./import_route53_s3.sh
+
+plan:
+	terraform plan
+</file>
+
+<file path="terraform/providers.tf">
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-west-1"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+</file>
+
+<file path="terraform/README.md">
+# Terraform Skeleton (prod)
+
+This directory contains a minimal, import‑first Terraform layout to codify the
+current cee.photography infrastructure without changing traffic. The pattern is:
+
+1) Bootstrap remote state (S3 + DynamoDB) — optional if you already have these
+2) Init Terraform with backend
+3) Import existing resources (Route53 zones/records, S3 buckets)
+4) Run plan (expect no changes). Only then consider expanding coverage
+
+No terraform apply is expected until imports are clean and plans are zero‑diff.
+
+## Layout
+- `bootstrap/` — creates the S3 state bucket + DynamoDB lock table (run once)
+- `backend.hcl` — remote state configuration (fill with your bucket/table)
+- `providers.tf`, `versions.tf` — provider & version pins
+- `main.tf` — resource stubs for import (Route53 zones/records, S3 buckets)
+- `import_route53_s3.sh` — helper to import live R53/S3 into state (dry‑run by default)
+
+## Quickstart (import‑only)
+1. Bootstrap state (optional — or use an existing state bucket/table):
+
+   cd bootstrap
+   terraform init
+   terraform apply -auto-approve -var "state_bucket_name=cee-tf-state-usw1" -var "lock_table_name=cee-tf-locks"
+
+2. Configure backend (edit `backend.hcl` as needed), then init at repo root:
+
+   cd ..
+   terraform init -backend-config=backend.hcl
+
+3. Create an empty state and import Route53 + S3 + IAM/EC2 (dry run prints commands):
+
+   ./import_route53_s3.sh           # prints import commands
+   APPLY=1 ./import_route53_s3.sh   # executes the imports
+
+4. Plan (expect no changes):
+
+   terraform plan
+
+If plan shows drift, stop and adjust the stubs (or add ignore_changes) before any apply.
+
+## Notes
+- The resource stubs have `prevent_destroy` and `ignore_changes = all` to safely assume
+  management. Remove `ignore_changes` gradually as you codify exact attributes (policies,
+  lifecycle rules, etc.) and validate plans.
+- EC2/IAM are included as stubs to complete the baseline; they are set to ignore all changes so
+  plans should be no‑diff after import. We’ll codify exact attributes later.
+</file>
+
+<file path="terraform/versions.tf">
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+  }
+}
+</file>
+
+</files>

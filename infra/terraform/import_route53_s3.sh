@@ -19,6 +19,10 @@ do_or_echo() {
 say "Discovering Route53 zone IDs..."
 CEE_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name cee.photography --query 'HostedZones[0].Id' --output text)
 HOL_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name hollings.photography --query 'HostedZones[0].Id' --output text)
+
+CEE_ZONE="${CEE_ZONE#/hostedzone/}"
+HOL_ZONE="${HOL_ZONE#/hostedzone/}"
+
 if [[ -z "$CEE_ZONE" || -z "$HOL_ZONE" || "$CEE_ZONE" == "None" || "$HOL_ZONE" == "None" ]]; then
   echo "ERROR: Could not resolve hosted zone IDs."
   exit 1
