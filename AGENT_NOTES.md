@@ -46,6 +46,16 @@ S3_BUCKET=japanesebirdcookingspaghetti-assets
 
 - `cee-api.service` active (uvicorn on 127.0.0.1:9002)
 
+#### cee-api.service (status excerpt)
+
+```
+● cee-api.service - cee.photography FastAPI service
+     Loaded: loaded (/etc/systemd/system/cee-api.service; enabled; preset: disabled)
+     Active: active (running) since Tue 2025-09-16 05:28:45 UTC; ~now
+     Main PID: uvicorn
+     Notes: Uvicorn running on http://127.0.0.1:9002
+```
+
 ### Notes
 - Plan to lower DNS TTLs to 60s during cutovers; record current TTLs first.
 - No changes applied in Phase 0 beyond safe reads and documentation.
