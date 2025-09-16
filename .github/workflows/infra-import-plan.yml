@@ -9,8 +9,8 @@ on:
         default: "true"
   push:
     paths:
-      - 'source/photography/infra/terraform/**'
-      - 'source/photography/.github/workflows/infra-import-plan.yml'
+      - 'infra/terraform/**'
+      - '.github/workflows/infra-import-plan.yml'
 
 env:
   AWS_REGION: us-west-1
@@ -36,7 +36,7 @@ jobs:
           terraform_version: 1.7.5
 
       - name: Bootstrap remote state (S3 + DynamoDB)
-        working-directory: source/photography/infra/terraform/bootstrap
+        working-directory: infra/terraform/bootstrap
         run: |
           set -euo pipefail
           terraform init
@@ -45,13 +45,13 @@ jobs:
             -var "lock_table_name=cee-tf-locks"
 
       - name: Terraform init with backend
-        working-directory: source/photography/infra/terraform
+        working-directory: infra/terraform
         run: |
           set -euo pipefail
           terraform init -backend-config=backend.hcl
 
       - name: Import Route53 + S3 into state
-        working-directory: source/photography/infra/terraform
+        working-directory: infra/terraform
         env:
           APPLY: ${{ github.event.inputs.apply_imports || 'true' }}
         run: |
@@ -60,7 +60,7 @@ jobs:
           ./import_route53_s3.sh
 
       - name: Terraform plan
-        working-directory: source/photography/infra/terraform
+        working-directory: infra/terraform
         run: |
           set -euo pipefail
           terraform plan -no-color -out=tfplan.out | tee plan.txt || true
@@ -71,5 +71,5 @@ jobs:
         with:
           name: terraform-plan
           path: |
-            source/photography/infra/terraform/plan.txt
-            source/photography/infra/terraform/plan-full.txt
+            infra/terraform/plan.txt
+            infra/terraform/plan-full.txt
