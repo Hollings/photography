@@ -43,3 +43,6 @@ do_or_echo "terraform import aws_s3_bucket.artifacts cee-artifacts-prod-78099796
 
 say "Done. If this was a dry run, re-run with APPLY=1 to execute."
 
+say "Importing IAM role and EC2 instance (stubs)..."
+do_or_echo "terraform import aws_iam_role.ec2_role jb-ec2-ssm-role"
+do_or_echo "terraform import aws_instance.web i-04bd4457fe443c716"

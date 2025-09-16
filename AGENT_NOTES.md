@@ -102,4 +102,6 @@ terraform import aws_route53_record.hol_apex_a /hostedzone/Z0616182IMHS71ROTURQ_
 terraform import aws_route53_record.hol_www_cname /hostedzone/Z0616182IMHS71ROTURQ_www.hollings.photography._CNAME
 terraform import aws_s3_bucket.assets japanesebirdcookingspaghetti-assets
 terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
+terraform import aws_iam_role.ec2_role jb-ec2-ssm-role
+terraform import aws_instance.web i-04bd4457fe443c716
 ```

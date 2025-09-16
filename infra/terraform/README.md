@@ -29,7 +29,7 @@ No terraform apply is expected until imports are clean and plans are zero‑diff
    cd ..
    terraform init -backend-config=backend.hcl
 
-3. Create an empty state and import Route53 + S3 (dry run prints commands):
+3. Create an empty state and import Route53 + S3 + IAM/EC2 (dry run prints commands):
 
    ./import_route53_s3.sh           # prints import commands
    APPLY=1 ./import_route53_s3.sh   # executes the imports
@@ -44,5 +44,5 @@ If plan shows drift, stop and adjust the stubs (or add ignore_changes) before an
 - The resource stubs have `prevent_destroy` and `ignore_changes = all` to safely assume
   management. Remove `ignore_changes` gradually as you codify exact attributes (policies,
   lifecycle rules, etc.) and validate plans.
-- EC2/IAM are not yet imported in this pass to keep validation simple; add them in a later
-  step once Route53/S3 are under control.
+- EC2/IAM are included as stubs to complete the baseline; they are set to ignore all changes so
+  plans should be no‑diff after import. We’ll codify exact attributes later.

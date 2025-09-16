@@ -7,6 +7,8 @@ locals {
   hollings_zone_name = "hollings.photography"
   assets_bucket      = "japanesebirdcookingspaghetti-assets"
   artifacts_bucket   = "cee-artifacts-prod-780997964150-usw1"
+  ec2_instance_id    = "i-04bd4457fe443c716"
+  ec2_role_name      = "jb-ec2-ssm-role"
 }
 
 resource "aws_route53_zone" "cee" {
@@ -93,3 +95,19 @@ resource "aws_s3_bucket" "artifacts" {
   lifecycle { prevent_destroy = true, ignore_changes = all }
 }
 
+# IAM role used by the EC2 instance (import-only stub)
+resource "aws_iam_role" "ec2_role" {
+  name               = local.ec2_role_name
+  assume_role_policy = jsonencode({}) # placeholder; real policy managed outside until codified
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# EC2 instance (import-only stub)
+resource "aws_instance" "web" {
+  ami                    = "ami-xxxxxxxx"   # placeholder, ignored
+  instance_type          = "t3.micro"       # placeholder, ignored
+  disable_api_termination = false
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
