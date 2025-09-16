@@ -34,7 +34,7 @@ do_or_echo "terraform import aws_route53_zone.hollings ${HOL_ZONE}"
 
 say "Importing cee.photography records..."
 do_or_echo "terraform import aws_route53_record.cee_apex_a ${CEE_ZONE}_cee.photography._A"
-do_or_echo "terraform import aws_route53_record.cee_www_cname ${CEE_ZONE}_www.cee.photography._CNAME"
+do_or_echo "terraform import aws_route53_record.cee_www_a ${CEE_ZONE}_www.cee.photography._A"
 do_or_echo "terraform import aws_route53_record.cee_atproto ${CEE_ZONE}__atproto.cee.photography._TXT"
 
 say "Importing hollings.photography records..."

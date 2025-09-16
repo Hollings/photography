@@ -45,12 +45,12 @@ resource "aws_route53_record" "cee_apex_a" {
   }
 }
 
-resource "aws_route53_record" "cee_www_cname" {
+resource "aws_route53_record" "cee_www_a" {
   zone_id = aws_route53_zone.cee.zone_id
   name    = "www.${local.cee_zone_name}"
-  type    = "CNAME"
-  ttl     = 300
-  records = [local.cee_zone_name]
+  type    = "A"
+  ttl     = 60
+  records = ["0.0.0.0"]
 
   lifecycle {
     prevent_destroy = true
