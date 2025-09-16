@@ -74,3 +74,17 @@ Next steps:
 - [ ] (Optional) Run bootstrap to create state bucket/table
 - [ ] Init backend; run import script (dry-run first), then with APPLY=1
 - [ ] terraform plan (expect no changes); adjust stubs if any drift shows
+
+### Import commands (dry‑run output)
+
+```
+terraform import aws_route53_zone.cee /hostedzone/Z01435361IWP4CZW2QPIX
+terraform import aws_route53_zone.hollings /hostedzone/Z0616182IMHS71ROTURQ
+terraform import aws_route53_record.cee_apex_a /hostedzone/Z01435361IWP4CZW2QPIX_cee.photography._A
+terraform import aws_route53_record.cee_www_cname /hostedzone/Z01435361IWP4CZW2QPIX_www.cee.photography._CNAME
+terraform import aws_route53_record.cee_atproto /hostedzone/Z01435361IWP4CZW2QPIX__atproto.cee.photography._TXT
+terraform import aws_route53_record.hol_apex_a /hostedzone/Z0616182IMHS71ROTURQ_hollings.photography._A
+terraform import aws_route53_record.hol_www_cname /hostedzone/Z0616182IMHS71ROTURQ_www.hollings.photography._CNAME
+terraform import aws_s3_bucket.assets japanesebirdcookingspaghetti-assets
+terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
+```
