@@ -86,6 +86,10 @@ To run:
 1) In GitHub Actions, run “Infra Import and Plan” (keep apply_imports=true)
 2) Review plan artifacts; we expect zero changes
 
+State naming (for clarity):
+- S3 state bucket: `cee-tf-state-780997964150-usw1`
+- DynamoDB lock table: `cee-tf-locks`
+
 ### Import commands (dry‑run output)
 
 ```

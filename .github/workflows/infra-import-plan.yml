@@ -9,8 +9,8 @@ on:
         default: "true"
   push:
     paths:
-      - 'infra/terraform/**'
-      - '.github/workflows/infra-import-plan.yml'
+      - 'source/photography/infra/terraform/**'
+      - 'source/photography/.github/workflows/infra-import-plan.yml'
 
 env:
   AWS_REGION: us-west-1
@@ -41,7 +41,7 @@ jobs:
           set -euo pipefail
           terraform init
           terraform apply -auto-approve \
-            -var "state_bucket_name=cee-tf-state-usw1" \
+            -var "state_bucket_name=cee-tf-state-780997964150-usw1" \
             -var "lock_table_name=cee-tf-locks"
 
       - name: Terraform init with backend
@@ -73,4 +73,3 @@ jobs:
           path: |
             source/photography/infra/terraform/plan.txt
             source/photography/infra/terraform/plan-full.txt
-

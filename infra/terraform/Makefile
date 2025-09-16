@@ -12,7 +12,7 @@ help:
 
 bootstrap:
 	cd bootstrap && terraform init && terraform apply -auto-approve \
-	  -var "state_bucket_name=cee-tf-state-usw1" \
+	  -var "state_bucket_name=cee-tf-state-780997964150-usw1" \
 	  -var "lock_table_name=cee-tf-locks"
 
 init:
@@ -23,4 +23,3 @@ import:
 
 plan:
 	terraform plan
-
