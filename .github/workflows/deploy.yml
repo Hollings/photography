@@ -277,17 +277,18 @@ jobs:
             location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
           }
           CONF
-          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx.conf
+          # Important: replace WWW_* before bare * to avoid partial substitution
           sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx.conf
+          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx.conf
           sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx.conf
-          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx.conf
           sed -i "s|WWW_ALT_DOMAIN|www.${ALT_DOMAIN}|g" cee-nginx.conf
+          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx.conf
           # Pre config substitutions
-          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx-pre.conf
           sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx-pre.conf
           sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx-pre.conf
-          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx-pre.conf
           sed -i "s|WWW_ALT_DOMAIN|www.${ALT_DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx-pre.conf
 
       - name: Upload deploy artifacts to S3 (private artifacts bucket)
         id: s3
