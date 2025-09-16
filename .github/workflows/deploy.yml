@@ -15,6 +15,7 @@ env:
   # New: private bucket for deploy artifacts/configs (no public access)
   ARTIFACTS_BUCKET: cee-artifacts-prod-780997964150-usw1
   DOMAIN: cee.photography
+  ALT_DOMAIN: hollings.photography
 
 jobs:
   deploy:
@@ -103,6 +104,81 @@ jobs:
           WantedBy=multi-user.target
           UNIT
 
+          # Full config (includes ALT_DOMAIN HTTPS). Pre config (without ALT HTTPS) is for cert issuance.
+          cat > cee-nginx-pre.conf <<'CONF_PRE'
+          # Cache storage for proxied S3 images
+          proxy_cache_path /var/cache/nginx/cee levels=1:2 keys_zone=cee_cache:10m max_size=1g inactive=7d use_temp_path=off;
+
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name DOMAIN WWW_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://DOMAIN$request_uri;
+          }
+          # ALT_DOMAIN HTTP (no cross-domain redirect)
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name ALT_DOMAIN WWW_ALT_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://$host$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name WWW_DOMAIN;
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            return 301 https://DOMAIN$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name DOMAIN;
+            root /var/www/cee/site;
+            index index.html;
+            # SPA fallback
+            # Protect management UI with basic auth
+            location ^~ /manage {
+              auth_basic "Management";
+              auth_basic_user_file /etc/nginx/cee.htpasswd;
+              try_files $uri /index.html;
+            }
+            location / { try_files $uri /index.html; }
+            # Backend routes
+            location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
+            location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+            # Feed
+            location = /feed.xml { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_pass http://127.0.0.1:9002/feed.xml; }
+            # Proxied images from S3 via this domain
+            location ^~ /images/ {
+              proxy_set_header Host S3_HOST;
+              # Do not forward Basic Auth header to S3 (causes 403/400)
+              proxy_set_header Authorization "";
+              proxy_http_version 1.1;
+              proxy_set_header Connection "";
+              proxy_read_timeout 300s;
+              # Caching
+              proxy_cache cee_cache;
+              proxy_cache_valid 200 301 302 1h;
+              proxy_cache_valid 404 5m;
+              proxy_hide_header Set-Cookie;
+              proxy_ignore_headers Set-Cookie;
+              add_header X-Cache $upstream_cache_status;
+              add_header Cache-Control "public, max-age=31536000, immutable" always;
+              # Map /images/<key> -> https://S3_HOST/<key>
+              proxy_pass https://S3_HOST/;
+            }
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+          }
+          CONF_PRE
+
           cat > cee-nginx.conf <<'CONF'
           # Cache storage for proxied S3 images
           proxy_cache_path /var/cache/nginx/cee levels=1:2 keys_zone=cee_cache:10m max_size=1g inactive=7d use_temp_path=off;
@@ -113,6 +189,14 @@ jobs:
             server_name DOMAIN WWW_DOMAIN;
             location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
             return 301 https://DOMAIN$request_uri;
+          }
+          # ALT_DOMAIN HTTP (no cross-domain redirect)
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name ALT_DOMAIN WWW_ALT_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://$host$request_uri;
           }
           server {
             listen 443 ssl;
@@ -173,10 +257,37 @@ jobs:
             add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
             location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
           }
+          # ALT_DOMAIN HTTPS (no /manage)
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name ALT_DOMAIN WWW_ALT_DOMAIN;
+            root /var/www/cee/site;
+            index index.html;
+            location ^~ /manage { return 404; }
+            location / { try_files $uri /index.html; }
+            location = /feed.xml { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_pass http://127.0.0.1:9002/feed.xml; }
+            location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
+            location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+            location ^~ /images/ { proxy_set_header Host S3_HOST; proxy_set_header Authorization ""; proxy_http_version 1.1; proxy_set_header Connection ""; proxy_read_timeout 300s; proxy_cache cee_cache; proxy_cache_valid 200 301 302 1h; proxy_cache_valid 404 5m; proxy_hide_header Set-Cookie; proxy_ignore_headers Set-Cookie; add_header X-Cache $upstream_cache_status; add_header Cache-Control "public, max-age=31536000, immutable" always; proxy_pass https://S3_HOST/; }
+            ssl_certificate /etc/letsencrypt/live/ALT_DOMAIN/fullchain.pem;
+            ssl_certificate_key /etc/letsencrypt/live/ALT_DOMAIN/privkey.pem;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+          }
           CONF
           sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx.conf
           sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx.conf
           sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx.conf
+          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx.conf
+          sed -i "s|WWW_ALT_DOMAIN|www.${ALT_DOMAIN}|g" cee-nginx.conf
+          # Pre config substitutions
+          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx-pre.conf
+          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|WWW_ALT_DOMAIN|www.${ALT_DOMAIN}|g" cee-nginx-pre.conf
 
       - name: Upload deploy artifacts to S3 (private artifacts bucket)
         id: s3
@@ -185,14 +296,17 @@ jobs:
           BACKEND_KEY=cee/deploy/backend-${GITHUB_SHA}.tar.gz
           FRONTEND_KEY=cee/deploy/site-${GITHUB_SHA}.tar.gz
           CONFIG_UNIT_KEY=cee/deploy/cee-api-${GITHUB_SHA}.service
+          CONFIG_NGX_PRE_KEY=cee/deploy/cee-nginx-pre-${GITHUB_SHA}.conf
           CONFIG_NGX_KEY=cee/deploy/cee-nginx-${GITHUB_SHA}.conf
           aws s3 cp backend.tar.gz      s3://${ARTIFACTS_BUCKET}/$BACKEND_KEY
           aws s3 cp site-dist.tar.gz    s3://${ARTIFACTS_BUCKET}/$FRONTEND_KEY
           aws s3 cp cee-api.service     s3://${ARTIFACTS_BUCKET}/$CONFIG_UNIT_KEY
+          aws s3 cp cee-nginx-pre.conf  s3://${ARTIFACTS_BUCKET}/$CONFIG_NGX_PRE_KEY
           aws s3 cp cee-nginx.conf      s3://${ARTIFACTS_BUCKET}/$CONFIG_NGX_KEY
           echo "backend_key=$BACKEND_KEY" >> $GITHUB_OUTPUT
           echo "frontend_key=$FRONTEND_KEY" >> $GITHUB_OUTPUT
           echo "unit_key=$CONFIG_UNIT_KEY" >> $GITHUB_OUTPUT
+          echo "nginx_pre_key=$CONFIG_NGX_PRE_KEY" >> $GITHUB_OUTPUT
           echo "nginx_key=$CONFIG_NGX_KEY" >> $GITHUB_OUTPUT
 
       - name: Deploy via SSM
@@ -208,6 +322,7 @@ jobs:
           export BK=${{ steps.s3.outputs.backend_key }}
           export SK=${{ steps.s3.outputs.frontend_key }}
           export UK=${{ steps.s3.outputs.unit_key }}
+          export NKP=${{ steps.s3.outputs.nginx_pre_key }}
           export NK=${{ steps.s3.outputs.nginx_key }}
           # Build parameters JSON via Python so $ENV remains literal for remote shell
           python3 - <<'PY'
@@ -218,6 +333,7 @@ jobs:
           BK = os.environ['BACKEND_KEY'] if 'BACKEND_KEY' in os.environ else os.environ.get('BK', '')
           SK = os.environ['FRONTEND_KEY'] if 'FRONTEND_KEY' in os.environ else os.environ.get('SK', '')
           UK = os.environ['CONFIG_UNIT_KEY'] if 'CONFIG_UNIT_KEY' in os.environ else os.environ.get('UK', '')
+          NKP = os.environ.get('NKP', '')
           NK = os.environ['CONFIG_NGX_KEY'] if 'CONFIG_NGX_KEY' in os.environ else os.environ.get('NK', '')
           cmds = [
             "set -euo pipefail",
@@ -226,6 +342,7 @@ jobs:
             f"aws s3 cp s3://{BUCKET_ART}/{BK} /tmp/backend.tar.gz",
             f"aws s3 cp s3://{BUCKET_ART}/{SK} /tmp/site-dist.tar.gz",
             f"aws s3 cp s3://{BUCKET_ART}/{UK} /tmp/cee-api.service",
+            f"aws s3 cp s3://{BUCKET_ART}/{NKP} /tmp/cee-nginx-pre.conf",
             f"aws s3 cp s3://{BUCKET_ART}/{NK} /tmp/cee-nginx.conf",
             "sudo mkdir -p /srv/cee/app /srv/cee/data /var/www/cee/site",
             "if [ ! -d /srv/cee/venv ]; then sudo python3 -m venv /srv/cee/venv; fi",
@@ -233,7 +350,8 @@ jobs:
             "sudo /srv/cee/venv/bin/pip install --upgrade pip",
             "sudo /srv/cee/venv/bin/pip install -r /srv/cee/app/requirements.txt",
             "sudo install -m 644 /tmp/cee-api.service /etc/systemd/system/cee-api.service",
-            "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
+            # Pre config (ALT HTTP only) then certbot issuance for ALT_DOMAIN
+            "sudo install -m 644 /tmp/cee-nginx-pre.conf /etc/nginx/conf.d/cee.conf",
             "sudo install -d -m 755 /var/cache/nginx/cee",
             # Create/update basic auth file for /manage (user: hollings)
             "echo 'hollings:$apr1$IREq9XjJ$uvhAU3MXBFJD3h80Pc76c1' | sudo tee /etc/nginx/cee.htpasswd >/dev/null",
@@ -251,6 +369,13 @@ jobs:
             "sudo systemctl restart cee-api.service",
             "sudo tar -xzf /tmp/site-dist.tar.gz -C /var/www/cee/site",
             "sudo chown -R ec2-user:nginx /var/www/cee/site",
+            "sudo nginx -t",
+            "sudo systemctl reload nginx || sudo systemctl restart nginx",
+            # Issue/renew ALT_DOMAIN certificate using webroot
+            "sudo dnf -y install certbot || true",
+            "sudo certbot certonly --non-interactive --agree-tos -m ops@cee.photography --webroot -w /var/www/cee/site -d ${os.environ.get('ALT_DOMAIN','')} -d www.${os.environ.get('ALT_DOMAIN','')} || true",
+            # Install full config and reload
+            "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
             "sudo nginx -t",
             "sudo systemctl reload nginx || sudo systemctl restart nginx",
           ]
