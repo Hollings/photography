@@ -11,7 +11,7 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 
 ## Phase 1 — Terraform Baseline (Import Live)
 - [x] Create Terraform backend S3 state bucket: `cee-tf-state-780997964150-usw1`
-- [ ] Create DynamoDB lock table: `cee-tf-locks` (CI bootstrap will create)
+- [x] Configure S3 backend without DynamoDB locking (optional to add later)
 - [x] Scaffold repo: providers (AWS), remote state, and modules (`route53`, `s3`, `iam`, `ec2`, `ssm`).
 - [ ] Import Route53 hosted zones (cee + hollings) and their A/CNAME/TXT records.
 - [ ] Import S3 buckets: images (public read on image prefixes only), artifacts (private, SSE-S3, lifecycle).

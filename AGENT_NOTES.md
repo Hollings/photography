@@ -88,11 +88,11 @@ To run:
 
 State naming (for clarity):
 - S3 state bucket: `cee-tf-state-780997964150-usw1`
-- DynamoDB lock table: `cee-tf-locks`
+- DynamoDB lock table: (omitted for now; backend configured without locking)
 
 Backend status:
 - Created S3 state bucket via AWS CLI
-- Lock table creation requires CI (local creds lack dynamodb:CreateTable)
+- Using S3-only backend (no lock table) to avoid extra IAM perms right now
 
 ### Import commands (dry‑run output)
 

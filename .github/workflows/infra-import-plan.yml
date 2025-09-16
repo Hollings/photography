@@ -35,15 +35,6 @@ jobs:
         with:
           terraform_version: 1.7.5
 
-      - name: Bootstrap remote state (S3 + DynamoDB)
-        working-directory: infra/terraform/bootstrap
-        run: |
-          set -euo pipefail
-          terraform init
-          terraform apply -auto-approve \
-            -var "state_bucket_name=cee-tf-state-780997964150-usw1" \
-            -var "lock_table_name=cee-tf-locks"
-
       - name: Terraform init with backend
         working-directory: infra/terraform
         run: |
