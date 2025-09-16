@@ -1,0 +1,1897 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: backend, site
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    deploy.yml
+    infra-import-plan.yml
+infra/
+  terraform/
+    bootstrap/
+      main.tf
+    backend.hcl
+    import_route53_s3.sh
+    main.tf
+    Makefile
+    providers.tf
+    README.md
+    versions.tf
+  repomix-output.xml
+.env.example
+.gitignore
+AGENT_NOTES.md
+cee-api.service
+cee-nginx.conf
+DEPLOY.md
+docker-compose.override.yml
+docker-compose.yml
+IAC_TODO.md
+ssm-backend.json
+ssm-params.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="infra/terraform/providers.tf">
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-west-1"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+</file>
+
+<file path="infra/terraform/versions.tf">
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+  }
+}
+</file>
+
+<file path="infra/repomix-output.xml">
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+terraform/
+  bootstrap/
+    main.tf
+  backend.hcl
+  import_route53_s3.sh
+  main.tf
+  Makefile
+  providers.tf
+  README.md
+  versions.tf
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="terraform/bootstrap/main.tf">
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+  }
+}
+
+variable "aws_region" {
+  type    = string
+  default = "us-west-1"
+}
+
+variable "state_bucket_name" {
+  type        = string
+  description = "Name for the Terraform state bucket"
+}
+
+variable "lock_table_name" {
+  type        = string
+  description = "Name for the DynamoDB lock table"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_s3_bucket" "tfstate" {
+  bucket        = var.state_bucket_name
+  force_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_s3_bucket_versioning" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_dynamodb_table" "locks" {
+  name         = var.lock_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+output "state_bucket" { value = aws_s3_bucket.tfstate.bucket }
+output "lock_table"  { value = aws_dynamodb_table.locks.name }
+</file>
+
+<file path="terraform/backend.hcl">
+# Remote state backend (fill with your actual bucket/table before init)
+bucket = "cee-tf-state-780997964150-usw1"
+key    = "prod/terraform.tfstate"
+region = "us-west-1"
+encrypt = true
+</file>
+
+<file path="terraform/import_route53_s3.sh">
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Imports Route53 zones/records and S3 buckets into Terraform state.
+# Dry-run by default; set APPLY=1 to execute imports.
+
+AWS_REGION=${AWS_REGION:-us-west-1}
+APPLY=${APPLY:-0}
+
+say() { printf "\033[1;34m%s\033[0m\n" "$*"; }
+do_or_echo() {
+  if [[ "$APPLY" == "1" ]]; then
+    eval "$1"
+  else
+    echo "$1"
+  fi
+}
+
+say "Discovering Route53 zone IDs..."
+CEE_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name cee.photography --query 'HostedZones[0].Id' --output text)
+HOL_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name hollings.photography --query 'HostedZones[0].Id' --output text)
+if [[ -z "$CEE_ZONE" || -z "$HOL_ZONE" || "$CEE_ZONE" == "None" || "$HOL_ZONE" == "None" ]]; then
+  echo "ERROR: Could not resolve hosted zone IDs."
+  exit 1
+fi
+
+say "Importing zones..."
+do_or_echo "terraform import aws_route53_zone.cee ${CEE_ZONE}"
+do_or_echo "terraform import aws_route53_zone.hollings ${HOL_ZONE}"
+
+say "Importing cee.photography records..."
+do_or_echo "terraform import aws_route53_record.cee_apex_a ${CEE_ZONE}_cee.photography._A"
+do_or_echo "terraform import aws_route53_record.cee_www_cname ${CEE_ZONE}_www.cee.photography._CNAME"
+do_or_echo "terraform import aws_route53_record.cee_atproto ${CEE_ZONE}__atproto.cee.photography._TXT"
+
+say "Importing hollings.photography records..."
+do_or_echo "terraform import aws_route53_record.hol_apex_a ${HOL_ZONE}_hollings.photography._A"
+do_or_echo "terraform import aws_route53_record.hol_www_cname ${HOL_ZONE}_www.hollings.photography._CNAME"
+
+say "Importing S3 buckets..."
+do_or_echo "terraform import aws_s3_bucket.assets japanesebirdcookingspaghetti-assets"
+do_or_echo "terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1"
+
+say "Done. If this was a dry run, re-run with APPLY=1 to execute."
+
+say "Importing IAM role and EC2 instance (stubs)..."
+do_or_echo "terraform import aws_iam_role.ec2_role jb-ec2-ssm-role"
+do_or_echo "terraform import aws_instance.web i-04bd4457fe443c716"
+do_or_echo "terraform import aws_security_group.web_sg sg-06af0ab526b6b570b"
+do_or_echo "terraform import aws_ebs_volume.root vol-00fbbd879177c3638"
+</file>
+
+<file path="terraform/main.tf">
+# Import-first resource stubs. Import existing resources, then run plan.
+# These blocks are protected with prevent_destroy and ignore_changes to avoid
+# accidental drift. Remove ignore_changes gradually as you codify exact config.
+
+locals {
+  cee_zone_name      = "cee.photography"
+  hollings_zone_name = "hollings.photography"
+  assets_bucket      = "japanesebirdcookingspaghetti-assets"
+  artifacts_bucket   = "cee-artifacts-prod-780997964150-usw1"
+  ec2_instance_id    = "i-04bd4457fe443c716"
+  ec2_role_name      = "jb-ec2-ssm-role"
+  ec2_sg_id          = "sg-06af0ab526b6b570b"
+  ec2_volume_id      = "vol-00fbbd879177c3638"
+}
+
+resource "aws_route53_zone" "cee" {
+  name = local.cee_zone_name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_zone" "hollings" {
+  name = local.hollings_zone_name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# Apex A and www CNAME for cee.photography
+resource "aws_route53_record" "cee_apex_a" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = local.cee_zone_name
+  type    = "A"
+  ttl     = 60
+  records = ["0.0.0.0"] # placeholder; import will override
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_record" "cee_www_cname" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = "www.${local.cee_zone_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [local.cee_zone_name]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# Apex A and www CNAME for hollings.photography
+resource "aws_route53_record" "hol_apex_a" {
+  zone_id = aws_route53_zone.hollings.zone_id
+  name    = local.hollings_zone_name
+  type    = "A"
+  ttl     = 300
+  records = ["0.0.0.0"] # placeholder
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_record" "hol_www_cname" {
+  zone_id = aws_route53_zone.hollings.zone_id
+  name    = "www.${local.hollings_zone_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [local.hollings_zone_name]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# TXT example: _atproto (if present)
+resource "aws_route53_record" "cee_atproto" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = "_atproto.${local.cee_zone_name}"
+  type    = "TXT"
+  ttl     = 300
+  records = ["\"did=did:plc:xb2urvqt5f4zzccjs46hysbf\""]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# S3 buckets (images + artifacts)
+resource "aws_s3_bucket" "assets" {
+  bucket = local.assets_bucket
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_s3_bucket" "artifacts" {
+  bucket = local.artifacts_bucket
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# IAM role used by the EC2 instance (import-only stub)
+resource "aws_iam_role" "ec2_role" {
+  name               = local.ec2_role_name
+  assume_role_policy = jsonencode({}) # placeholder; real policy managed outside until codified
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# EC2 instance (import-only stub)
+resource "aws_instance" "web" {
+  ami                    = "ami-xxxxxxxx"   # placeholder, ignored
+  instance_type          = "t3.micro"       # placeholder, ignored
+  disable_api_termination = false
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Security group protecting the instance (import-only stub)
+resource "aws_security_group" "web_sg" {
+  name   = "cee-web-sg"
+  vpc_id = "vpc-xxxxxxxx" # placeholder
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Root EBS volume (import-only stub)
+resource "aws_ebs_volume" "root" {
+  availability_zone = "us-west-1a"
+  size              = 8
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+</file>
+
+<file path="terraform/Makefile">
+SHELL := /bin/bash
+TFDIR := $(shell pwd)
+
+.PHONY: help bootstrap init import plan
+
+help:
+	@echo "Targets:"
+	@echo "  bootstrap  - create remote state S3 bucket + DynamoDB lock table (run once)"
+	@echo "  init       - terraform init with backend.hcl"
+	@echo "  import     - show import commands (set APPLY=1 to execute)"
+	@echo "  plan       - terraform plan (requires imports and backend configured)"
+
+bootstrap:
+	cd bootstrap && terraform init && terraform apply -auto-approve \
+	  -var "state_bucket_name=cee-tf-state-780997964150-usw1" \
+	  -var "lock_table_name=cee-tf-locks"
+
+init:
+	terraform init -backend-config=backend.hcl
+
+import:
+	./import_route53_s3.sh
+
+plan:
+	terraform plan
+</file>
+
+<file path="terraform/providers.tf">
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-west-1"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+</file>
+
+<file path="terraform/README.md">
+# Terraform Skeleton (prod)
+
+This directory contains a minimal, import‑first Terraform layout to codify the
+current cee.photography infrastructure without changing traffic. The pattern is:
+
+1) Bootstrap remote state (S3 + DynamoDB) — optional if you already have these
+2) Init Terraform with backend
+3) Import existing resources (Route53 zones/records, S3 buckets)
+4) Run plan (expect no changes). Only then consider expanding coverage
+
+No terraform apply is expected until imports are clean and plans are zero‑diff.
+
+## Layout
+- `bootstrap/` — creates the S3 state bucket + DynamoDB lock table (run once)
+- `backend.hcl` — remote state configuration (fill with your bucket/table)
+- `providers.tf`, `versions.tf` — provider & version pins
+- `main.tf` — resource stubs for import (Route53 zones/records, S3 buckets)
+- `import_route53_s3.sh` — helper to import live R53/S3 into state (dry‑run by default)
+
+## Quickstart (import‑only)
+1. Bootstrap state (optional — or use an existing state bucket/table):
+
+   cd bootstrap
+   terraform init
+   terraform apply -auto-approve -var "state_bucket_name=cee-tf-state-usw1" -var "lock_table_name=cee-tf-locks"
+
+2. Configure backend (edit `backend.hcl` as needed), then init at repo root:
+
+   cd ..
+   terraform init -backend-config=backend.hcl
+
+3. Create an empty state and import Route53 + S3 + IAM/EC2 (dry run prints commands):
+
+   ./import_route53_s3.sh           # prints import commands
+   APPLY=1 ./import_route53_s3.sh   # executes the imports
+
+4. Plan (expect no changes):
+
+   terraform plan
+
+If plan shows drift, stop and adjust the stubs (or add ignore_changes) before any apply.
+
+## Notes
+- The resource stubs have `prevent_destroy` and `ignore_changes = all` to safely assume
+  management. Remove `ignore_changes` gradually as you codify exact attributes (policies,
+  lifecycle rules, etc.) and validate plans.
+- EC2/IAM are included as stubs to complete the baseline; they are set to ignore all changes so
+  plans should be no‑diff after import. We’ll codify exact attributes later.
+</file>
+
+<file path="terraform/versions.tf">
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+  }
+}
+</file>
+
+</files>
+</file>
+
+<file path=".env.example">
+S3_BUCKET=your-s3-bucket-name
+AWS_DEFAULT_REGION=us-west-1
+DATABASE_URL=sqlite:///photos.db
+LOG_LEVEL=DEBUG
+
+# Optional: if you want to use a different profile inside Docker via the override
+# AWS_PROFILE=codex
+</file>
+
+<file path="cee-api.service">
+[Unit]
+Description=cee.photography FastAPI service
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=nginx
+EnvironmentFile=-/srv/cee/.env
+WorkingDirectory=/srv/cee/app
+ExecStart=/srv/cee/venv/bin/uvicorn main:app --host 127.0.0.1 --port 9002 --proxy-headers --forwarded-allow-ips='*'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+</file>
+
+<file path="cee-nginx.conf">
+# Cache storage for proxied S3 images
+proxy_cache_path /var/cache/nginx/cee levels=1:2 keys_zone=cee_cache:10m max_size=1g inactive=7d use_temp_path=off;
+
+server {
+  listen 80;
+  listen [::]:80;
+  server_name cee.photography WWW_cee.photography;
+  location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+  return 301 https://cee.photography$request_uri;
+}
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  http2 on;
+  server_name WWW_cee.photography;
+  ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+  return 301 https://cee.photography$request_uri;
+}
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  http2 on;
+  server_name cee.photography;
+  root /var/www/cee/site;
+  index index.html;
+  # SPA fallback
+  # Protect management UI with basic auth
+  location ^~ /manage {
+    auth_basic "Management";
+    auth_basic_user_file /etc/nginx/cee.htpasswd;
+    try_files $uri /index.html;
+  }
+  location / { try_files $uri /index.html; }
+  # RSS feed
+  location = /feed.xml {
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_pass http://127.0.0.1:9002/feed.xml;
+  }
+  # Backend routes
+  location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
+  location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+  # Proxied images from S3 via this domain
+  location ^~ /images/ {
+    proxy_set_header Host japanesebirdcookingspaghetti-assets.s3.us-west-1.amazonaws.com;
+    # Do not forward Basic Auth header to S3 (causes 403/400)
+    proxy_set_header Authorization "";
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_read_timeout 300s;
+    # Caching
+    proxy_cache cee_cache;
+    proxy_cache_valid 200 301 302 1h;
+    proxy_cache_valid 404 5m;
+    proxy_hide_header Set-Cookie;
+    proxy_ignore_headers Set-Cookie;
+    add_header X-Cache $upstream_cache_status;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    # Map /images/<key> -> https://japanesebirdcookingspaghetti-assets.s3.us-west-1.amazonaws.com/<key>
+    proxy_pass https://japanesebirdcookingspaghetti-assets.s3.us-west-1.amazonaws.com/;
+  }
+  ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+}
+</file>
+
+<file path="DEPLOY.md">
+Deploy Notes
+
+- Buckets
+  - `ASSETS_BUCKET`: Public-read for image prefixes only (`full/`, `medium/`, `small/`, `thumbnail/`). Nginx proxies `/images/*` to this bucket. Backend writes originals/variants here.
+  - `ARTIFACTS_BUCKET`: Private bucket for deploy artifacts (`cee/deploy/*`, `cee/patch/*`). Used by GitHub Actions to upload build outputs and by SSM on the instance to download them.
+
+- GitHub Actions
+  - Workflow: `.github/workflows/deploy.yml`
+  - Upload step pushes artifacts to `ARTIFACTS_BUCKET`.
+  - SSM deploy step downloads from `ARTIFACTS_BUCKET`, but writes app env `S3_BUCKET` using `ASSETS_BUCKET` (so the app still targets the images bucket).
+  - Cleanup step deletes artifacts from `ARTIFACTS_BUCKET`.
+
+- Instance
+  - `/srv/cee/.env` contains `S3_BUCKET` (images bucket) and region.
+  - `/etc/nginx/conf.d/cee.conf` proxies `/images/*` to `${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com`.
+
+Security posture
+  - Images bucket policy allows public `GetObject` only on the four image prefixes; ListBucket is denied.
+  - Artifacts bucket has public access blocked and default SSE-S3 encryption.
+</file>
+
+<file path="docker-compose.override.yml">
+version: "3.9"
+
+services:
+  backend:
+    # Mount host AWS credentials into the container for boto3 default provider chain
+    volumes:
+      - ~/.aws:/root/.aws:ro
+    environment:
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+      - AWS_REGION=${AWS_REGION:-us-west-1}
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-west-1}
+</file>
+
+<file path="ssm-backend.json">
+{"commands": [
+  "set -e",
+  "aws s3 cp s3://cee-artifacts-prod-780997964150-usw1/cee/deploy/backend-40b8ed4c9f2191d69974e87d7327be2c0a682758.tar.gz /tmp/backend.tar.gz",
+  "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
+  "sudo systemctl restart cee-api.service"
+]}
+</file>
+
+<file path="ssm-params.json">
+{"commands": ["set -euo pipefail", "cd /home/ec2-user", "aws s3 cp s3://cee-artifacts-prod-780997964150-usw1/cee/deploy/site-b4f523279005249b8760778ad16279cb473f5cc0.tar.gz /tmp/site-dist.tar.gz", "sudo tar -xzf /tmp/site-dist.tar.gz -C /var/www/cee/site", "sudo chown -R ec2-user:nginx /var/www/cee/site", "sudo nginx -t", "sudo systemctl reload nginx || sudo systemctl restart nginx"]}
+</file>
+
+<file path="infra/terraform/bootstrap/main.tf">
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+  }
+}
+
+variable "aws_region" {
+  type    = string
+  default = "us-west-1"
+}
+
+variable "state_bucket_name" {
+  type        = string
+  description = "Name for the Terraform state bucket"
+}
+
+variable "lock_table_name" {
+  type        = string
+  description = "Name for the DynamoDB lock table"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_s3_bucket" "tfstate" {
+  bucket        = var.state_bucket_name
+  force_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_s3_bucket_versioning" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_dynamodb_table" "locks" {
+  name         = var.lock_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+output "state_bucket" { value = aws_s3_bucket.tfstate.bucket }
+output "lock_table"  { value = aws_dynamodb_table.locks.name }
+</file>
+
+<file path="infra/terraform/Makefile">
+SHELL := /bin/bash
+TFDIR := $(shell pwd)
+
+.PHONY: help bootstrap init import plan
+
+help:
+	@echo "Targets:"
+	@echo "  bootstrap  - create remote state S3 bucket + DynamoDB lock table (run once)"
+	@echo "  init       - terraform init with backend.hcl"
+	@echo "  import     - show import commands (set APPLY=1 to execute)"
+	@echo "  plan       - terraform plan (requires imports and backend configured)"
+
+bootstrap:
+	cd bootstrap && terraform init && terraform apply -auto-approve \
+	  -var "state_bucket_name=cee-tf-state-780997964150-usw1" \
+	  -var "lock_table_name=cee-tf-locks"
+
+init:
+	terraform init -backend-config=backend.hcl
+
+import:
+	./import_route53_s3.sh
+
+plan:
+	terraform plan
+</file>
+
+<file path="infra/terraform/README.md">
+# Terraform Skeleton (prod)
+
+This directory contains a minimal, import‑first Terraform layout to codify the
+current cee.photography infrastructure without changing traffic. The pattern is:
+
+1) Bootstrap remote state (S3 + DynamoDB) — optional if you already have these
+2) Init Terraform with backend
+3) Import existing resources (Route53 zones/records, S3 buckets)
+4) Run plan (expect no changes). Only then consider expanding coverage
+
+No terraform apply is expected until imports are clean and plans are zero‑diff.
+
+## Layout
+- `bootstrap/` — creates the S3 state bucket + DynamoDB lock table (run once)
+- `backend.hcl` — remote state configuration (fill with your bucket/table)
+- `providers.tf`, `versions.tf` — provider & version pins
+- `main.tf` — resource stubs for import (Route53 zones/records, S3 buckets)
+- `import_route53_s3.sh` — helper to import live R53/S3 into state (dry‑run by default)
+
+## Quickstart (import‑only)
+1. Bootstrap state (optional — or use an existing state bucket/table):
+
+   cd bootstrap
+   terraform init
+   terraform apply -auto-approve -var "state_bucket_name=cee-tf-state-usw1" -var "lock_table_name=cee-tf-locks"
+
+2. Configure backend (edit `backend.hcl` as needed), then init at repo root:
+
+   cd ..
+   terraform init -backend-config=backend.hcl
+
+3. Create an empty state and import Route53 + S3 + IAM/EC2 (dry run prints commands):
+
+   ./import_route53_s3.sh           # prints import commands
+   APPLY=1 ./import_route53_s3.sh   # executes the imports
+
+4. Plan (expect no changes):
+
+   terraform plan
+
+If plan shows drift, stop and adjust the stubs (or add ignore_changes) before any apply.
+
+## Notes
+- The resource stubs have `prevent_destroy` and `ignore_changes = all` to safely assume
+  management. Remove `ignore_changes` gradually as you codify exact attributes (policies,
+  lifecycle rules, etc.) and validate plans.
+- EC2/IAM are included as stubs to complete the baseline; they are set to ignore all changes so
+  plans should be no‑diff after import. We’ll codify exact attributes later.
+</file>
+
+<file path=".gitignore">
+# This .gitignore is appropriate for repositories deployed to GitHub Pages and using
+# a Gemfile as specified at https://github.com/github/pages-gem#conventional
+
+# Basic Jekyll gitignores (synchronize to Jekyll.gitignore)
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Additional Ruby/bundler ignore for when you run: bundle install
+/vendor
+
+# Specific ignore for GitHub Pages
+# GitHub Pages will always use its own deployed version of pages-gem 
+# This means GitHub Pages will NOT use your Gemfile.lock and therefore it is
+# counterproductive to check this file into the repository.
+# Details at https://github.com/github/pages-gem/issues/768
+Gemfile.lock
+
+.env
+.idea
+photos
+
+# Terraform local files
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+infra/terraform/terraform.tfstate
+infra/terraform/terraform.tfstate.backup
+</file>
+
+<file path="docker-compose.yml">
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # production SPA (unchanged)
+#  frontend:
+#    build: ./site
+#    ports:
+#      - "3000:80"
+#    depends_on:
+#      - backend
+#    restart: unless-stopped
+
+  # NEW: hot‑reloading dev server
+  frontend-dev:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -lc "npm install --foreground-scripts && npm run dev -- --host 0.0.0.0 --port 5173"
+    volumes:
+      - ./site:/app          # live mount source code
+      - /app/node_modules    # keep deps inside container
+    ports:
+      - "${FRONTEND_DEV_PORT:-5173}:5173"
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+</file>
+
+<file path="infra/terraform/backend.hcl">
+# Remote state backend (fill with your actual bucket/table before init)
+bucket = "cee-tf-state-780997964150-usw1"
+key    = "prod/terraform.tfstate"
+region = "us-west-1"
+encrypt = true
+</file>
+
+<file path="infra/terraform/import_route53_s3.sh">
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Imports Route53 zones/records and S3 buckets into Terraform state.
+# Dry-run by default; set APPLY=1 to execute imports.
+
+AWS_REGION=${AWS_REGION:-us-west-1}
+APPLY=${APPLY:-0}
+
+say() { printf "\033[1;34m%s\033[0m\n" "$*"; }
+do_or_echo() {
+  if [[ "$APPLY" == "1" ]]; then
+    eval "$1"
+  else
+    echo "$1"
+  fi
+}
+
+say "Discovering Route53 zone IDs..."
+CEE_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name cee.photography --query 'HostedZones[0].Id' --output text)
+HOL_ZONE=$(aws route53 list-hosted-zones-by-name --dns-name hollings.photography --query 'HostedZones[0].Id' --output text)
+
+CEE_ZONE="${CEE_ZONE#/hostedzone/}"
+HOL_ZONE="${HOL_ZONE#/hostedzone/}"
+
+if [[ -z "$CEE_ZONE" || -z "$HOL_ZONE" || "$CEE_ZONE" == "None" || "$HOL_ZONE" == "None" ]]; then
+  echo "ERROR: Could not resolve hosted zone IDs."
+  exit 1
+fi
+
+say "Importing zones..."
+do_or_echo "terraform import aws_route53_zone.cee ${CEE_ZONE}"
+do_or_echo "terraform import aws_route53_zone.hollings ${HOL_ZONE}"
+
+say "Importing cee.photography records..."
+do_or_echo "terraform import aws_route53_record.cee_apex_a ${CEE_ZONE}_cee.photography._A"
+do_or_echo "terraform import aws_route53_record.cee_www_cname ${CEE_ZONE}_www.cee.photography._CNAME"
+do_or_echo "terraform import aws_route53_record.cee_atproto ${CEE_ZONE}__atproto.cee.photography._TXT"
+
+say "Importing hollings.photography records..."
+do_or_echo "terraform import aws_route53_record.hol_apex_a ${HOL_ZONE}_hollings.photography._A"
+do_or_echo "terraform import aws_route53_record.hol_www_cname ${HOL_ZONE}_www.hollings.photography._CNAME"
+
+say "Importing S3 buckets..."
+do_or_echo "terraform import aws_s3_bucket.assets japanesebirdcookingspaghetti-assets"
+do_or_echo "terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1"
+
+say "Done. If this was a dry run, re-run with APPLY=1 to execute."
+
+say "Importing IAM role and EC2 instance (stubs)..."
+do_or_echo "terraform import aws_iam_role.ec2_role jb-ec2-ssm-role"
+do_or_echo "terraform import aws_instance.web i-04bd4457fe443c716"
+do_or_echo "terraform import aws_security_group.web_sg sg-06af0ab526b6b570b"
+do_or_echo "terraform import aws_ebs_volume.root vol-00fbbd879177c3638"
+</file>
+
+<file path="infra/terraform/main.tf">
+# Import-first resource stubs. Import existing resources, then run plan.
+# These blocks are protected with prevent_destroy and ignore_changes to avoid
+# accidental drift. Remove ignore_changes gradually as you codify exact config.
+
+locals {
+  cee_zone_name      = "cee.photography"
+  hollings_zone_name = "hollings.photography"
+  assets_bucket      = "japanesebirdcookingspaghetti-assets"
+  artifacts_bucket   = "cee-artifacts-prod-780997964150-usw1"
+  ec2_instance_id    = "i-04bd4457fe443c716"
+  ec2_role_name      = "jb-ec2-ssm-role"
+  ec2_sg_id          = "sg-06af0ab526b6b570b"
+  ec2_volume_id      = "vol-00fbbd879177c3638"
+}
+
+resource "aws_route53_zone" "cee" {
+  name = local.cee_zone_name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_zone" "hollings" {
+  name = local.hollings_zone_name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# Apex A and www CNAME for cee.photography
+resource "aws_route53_record" "cee_apex_a" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = local.cee_zone_name
+  type    = "A"
+  ttl     = 60
+  records = ["0.0.0.0"] # placeholder; import will override
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_record" "cee_www_cname" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = "www.${local.cee_zone_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [local.cee_zone_name]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# Apex A and www CNAME for hollings.photography
+resource "aws_route53_record" "hol_apex_a" {
+  zone_id = aws_route53_zone.hollings.zone_id
+  name    = local.hollings_zone_name
+  type    = "A"
+  ttl     = 300
+  records = ["0.0.0.0"] # placeholder
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_route53_record" "hol_www_cname" {
+  zone_id = aws_route53_zone.hollings.zone_id
+  name    = "www.${local.hollings_zone_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [local.hollings_zone_name]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# TXT example: _atproto (if present)
+resource "aws_route53_record" "cee_atproto" {
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = "_atproto.${local.cee_zone_name}"
+  type    = "TXT"
+  ttl     = 300
+  records = ["\"did=did:plc:xb2urvqt5f4zzccjs46hysbf\""]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# S3 buckets (images + artifacts)
+resource "aws_s3_bucket" "assets" {
+  bucket = local.assets_bucket
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+resource "aws_s3_bucket" "artifacts" {
+  bucket = local.artifacts_bucket
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# IAM role used by the EC2 instance (import-only stub)
+resource "aws_iam_role" "ec2_role" {
+  name               = local.ec2_role_name
+  assume_role_policy = jsonencode({}) # placeholder; real policy managed outside until codified
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+}
+
+# EC2 instance (import-only stub)
+resource "aws_instance" "web" {
+  ami                    = "ami-xxxxxxxx"   # placeholder, ignored
+  instance_type          = "t3.micro"       # placeholder, ignored
+  disable_api_termination = false
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Security group protecting the instance (import-only stub)
+resource "aws_security_group" "web_sg" {
+  name   = "cee-web-sg"
+  vpc_id = "vpc-xxxxxxxx" # placeholder
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Root EBS volume (import-only stub)
+resource "aws_ebs_volume" "root" {
+  availability_zone = "us-west-1a"
+  size              = 8
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+</file>
+
+<file path="IAC_TODO.md">
+# Infra-as-Code Migration TODO
+
+Scope: codify the current cee.photography stack and safely migrate to managed TLS/routing with clear rollback at each step. No changes should be applied without a successful dry-run and a written revert path.
+
+## Phase 0 — Pre‑Flight (Inventory, Safety)
+- [x] Confirm AWS account/region (780997964150, us-west-1) and active profile for automation.
+- [x] Snapshot current server config: `/etc/nginx/conf.d/cee.conf` (server_name lines), `/srv/cee/.env` (key vars), `systemctl status cee-api.service` (excerpt).
+- [x] Note critical IDs: EC2 `i-04bd4457fe443c716`, role `jb-ec2-ssm-role`, buckets: images `japanesebirdcookingspaghetti-assets`, artifacts `cee-artifacts-prod-780997964150-usw1`.
+- [x] Route53 zones: `cee.photography`, `hollings.photography` (record sets for apex + www) and TTLs.
+- [ ] Set low DNS TTLs (60s) on apex/www A/CNAME during migration windows.
+
+## Phase 1 — Terraform Baseline (Import Live)
+- [x] Create Terraform backend S3 state bucket: `cee-tf-state-780997964150-usw1`
+- [x] Configure S3 backend without DynamoDB locking (optional to add later)
+- [x] Scaffold repo: providers (AWS), remote state, and modules (`route53`, `s3`, `iam`, `ec2`, `ssm`).
+- [ ] Import Route53 hosted zones (cee + hollings) and their A/CNAME/TXT records.
+- [ ] Import S3 buckets: images (public read on image prefixes only), artifacts (private, SSE-S3, lifecycle).
+- [ ] Import IAM instance role `jb-ec2-ssm-role` and policy attachments (S3 images r/w, artifacts read, SSM).
+- [ ] Import EC2 instance, Security Group(s), and any EBS volumes.
+- [ ] Write exact resource definitions to match current live configuration (policies, lifecycle, SG rules, tags).
+- [ ] Run `terraform plan` → expect NO CHANGES; fix drift in code until plan is empty.
+- [ ] Add CI job: plan on PR, apply on main (manual approval optional).
+- [ ] Rollback plan: retain backups; if something is off, do not apply. Revert code or state to previous commit.
+
+### Optional Hardening in Phase 1
+- [ ] Allocate and attach an Elastic IP to the EC2 instance.
+- [ ] Update apex A records (both zones) to the EIP via Terraform.
+- [ ] Rollback: point A back to old public IP (TTL=60), detach/release EIP later.
+
+## Phase 2A — Managed TLS + ALB (Canary on hollings)
+- [ ] Provision ACM certs (DNS-validated) for both domains (apex + www) in Terraform.
+- [ ] Create ALB + Security Group + Target Group; register existing EC2 backend.
+- [ ] ALB listeners: host-based routing for cee.* and hollings.*; preserve Host header for feed.
+- [ ] Optional: ALB rule to 404 `/manage` for `Host=hollings.*` (keep /manage on cee only).
+- [ ] Switch hollings apex to ALB (ALIAS). Validate HTTPS, /photos, /feed.xml, /images on hollings.
+- [ ] Rollback: point hollings apex back to EIP; leave ALB in place for next attempt.
+- [ ] When stable, switch cee apex to ALB. Rollback path: apex back to EIP.
+
+## Phase 2B — CloudFront + S3 for SPA (Optional, start with hollings)
+- [ ] Create private S3 SPA buckets: `spa-cee.photography`, `spa-hollings.photography` (OAC/OAI restricted).
+- [ ] Create CloudFront distributions (in us-east-1 ACM) with alternate CNAMEs per domain.
+- [ ] Behaviors: `/images/*` → images S3 origin; `/feed.xml` and `/photos*` → ALB origin; `/*` → SPA origin.
+- [ ] CI: upload SPA build to S3 and issue CloudFront invalidations on deploy.
+- [ ] Flip hollings CNAME to CloudFront; validate; rollback by pointing back to apex/ALB.
+- [ ] Repeat for cee when satisfied.
+
+## Phase 3 — ECS Fargate Backend (Optional)
+- [ ] Create ECR repo and CI step to build/push backend image.
+- [ ] Terraform ECS cluster, task definition (env from SSM), service behind ALB TG.
+- [ ] Register EC2 and ECS in separate target groups; shift traffic gradually.
+- [ ] Rollback: shift ALB weight back to EC2 target group.
+
+## Cross‑Cutting Enhancements
+- [ ] Move app config from `.env` to SSM Parameter Store (secure strings); load at boot.
+- [ ] Enable CloudWatch Logs (Nginx + Uvicorn via CW agent) and ALB/CF access logs.
+- [ ] Add alarms: 5xx spikes, instance memory pressure, disk space, cert expiry (if any).
+- [ ] Document `/manage` access (cee only) and ensure it is blocked on hollings (ALB or app layer).
+
+## Validation & Rollback Playbook
+- [ ] Pre/post deploy checks: `systemctl status`, `journalctl`, Nginx test, local curls to backend.
+- [ ] DNS flips have explicit rollback: ALIAS/CNAME back to previous target; TTL=60 during changes.
+- [ ] Nginx config changes keep `.bak` and reload only after `nginx -t` passes; revert with single mv + reload.
+- [ ] Keep EC2 path intact until ALB/ECS paths are proven; never decommission the old path without a tested fallback.
+
+Notes:
+- Start with Phase 1 only if schedule is tight; it stops drift without changing traffic.
+- Use hollings.photography for canary in Phase 2 to avoid impacting cee.photography.
+</file>
+
+<file path=".github/workflows/infra-import-plan.yml">
+name: infra-import-plan
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_imports:
+        description: Run terraform import (APPLY=1)
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/terraform/**'
+      - 'source/photography/.github/workflows/infra-import-plan.yml'
+
+jobs:
+  import_and_plan:
+    runs-on: ubuntu-latest
+
+    # All steps run in infra/terraform as requested
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/terraform
+
+    env:
+      # Repo secrets and region
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-west-1
+      AWS_REGION: us-west-1
+      TF_IN_AUTOMATION: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Verify or install AWS CLI v2
+        run: |
+          if ! command -v aws >/dev/null 2>&1; then
+            echo "Installing AWS CLI v2"
+            curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            sudo ./aws/install
+          fi
+          aws --version
+
+      - name: Show caller identity
+        run: aws sts get-caller-identity
+
+      - name: Terraform init with S3 backend
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Ensure import script is executable
+        run: chmod +x ./import_route53_s3.sh
+
+      - name: Import commands (dry run)
+        run: ./import_route53_s3.sh
+
+      - name: Execute imports when manual dispatch
+        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.apply_imports == true || github.event.inputs.apply_imports == 'true')
+        env:
+          APPLY: "1"
+        run: ./import_route53_s3.sh
+
+      - name: Terraform plan (detailed exit code)
+        id: plan
+        run: |
+          set +e
+          terraform plan -detailed-exitcode -no-color -out plan.tfplan
+          exit_code=$?
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          terraform show -no-color plan.tfplan > plan-full.txt
+          # single-line summary
+          grep -E "^Plan:" -m1 plan-full.txt > plan.txt || echo "Plan summary unavailable" > plan.txt
+          # always continue so we can upload artifacts even if changes exist
+          exit 0
+
+      - name: Upload plan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            infra/terraform/plan.txt
+            infra/terraform/plan-full.txt
+            infra/terraform/plan.tfplan
+          if-no-files-found: error
+
+      - name: Fail build if plan has changes
+        if: steps.plan.outputs.exit_code == '2'
+        run: |
+          echo "Terraform reported changes. See artifacts for details."
+          exit 1
+</file>
+
+<file path="AGENT_NOTES.md">
+# Agent Notes
+
+This file tracks working notes for the IaC migration so context persists across sessions.
+
+## PHASE 0 — Pre‑Flight (Inventory, Safety)
+- Status: in progress
+- Checklist reference: see `IAC_TODO.md` Phase 0 / Phase 1
+
+### Snapshot: Key Identifiers
+- AWS Account: 780997964150
+- ARN: arn:aws:iam::780997964150:user/codex-macbook
+- Region: us-west-1
+- EC2 instance: i-04bd4457fe443c716
+- Public IP: 52.52.3.178
+- Instance role: `jb-ec2-ssm-role`
+- Buckets:
+  - Images: `japanesebirdcookingspaghetti-assets`
+  - Artifacts: `cee-artifacts-prod-780997964150-usw1`
+
+### Snapshot: Route 53
+- cee.photography — ZoneId: /hostedzone/Z01435361IWP4CZW2QPIX
+  - apex A TTL: 60
+  - www CNAME TTL: 300
+- hollings.photography — ZoneId: /hostedzone/Z0616182IMHS71ROTURQ
+  - apex A TTL: 300
+  - www CNAME TTL: 300
+
+### Snapshot: Server Config
+- server_name lines:
+
+```
+7:  server_name cee.photography www.cee.photography;
+15:  server_name ALT_cee.photography WWW_ALT_cee.photography;
+23:  server_name www.cee.photography;
+32:  server_name cee.photography;
+```
+
+- .env (first 10 lines):
+
+```
+CEE_API_VERSION=0.1.0
+DATABASE_URL=sqlite:////srv/cee/data/photos.db
+AWS_DEFAULT_REGION=us-west-1
+S3_BUCKET=japanesebirdcookingspaghetti-assets
+```
+
+- `cee-api.service` active (uvicorn on 127.0.0.1:9002)
+
+#### cee-api.service (status excerpt)
+
+```
+● cee-api.service - cee.photography FastAPI service
+     Loaded: loaded (/etc/systemd/system/cee-api.service; enabled; preset: disabled)
+     Active: active (running) since Tue 2025-09-16 05:28:45 UTC; ~now
+     Main PID: uvicorn
+     Notes: Uvicorn running on http://127.0.0.1:9002
+```
+
+### Notes
+- Plan to lower DNS TTLs to 60s during cutovers; record current TTLs first.
+- No changes applied in Phase 0 beyond safe reads and documentation.
+
+## PHASE 1 — Terraform Baseline (Scaffold)
+- Status: scaffolded; backend S3 bucket created; CI to create lock table & import
+- Path: `infra/terraform` in this repo
+- Contents:
+  - bootstrap/main.tf — creates remote state S3 bucket + DynamoDB lock table (optional)
+  - backend.hcl — remote state config (fill with names), then `terraform init -backend-config=backend.hcl`
+  - providers.tf, versions.tf — AWS provider + pins
+  - main.tf — stubs for Route53 zones/records and S3 buckets (prevent_destroy + ignore_changes)
+  - import_route53_s3.sh — helper that discovers zone IDs and prints/imports terraform import commands
+
+Next steps:
+- [ ] (Optional) Run bootstrap to create state bucket/table
+- [ ] Init backend; run import script (dry-run first), then with APPLY=1
+- [ ] terraform plan (expect no changes); adjust stubs if any drift shows
+
+#### CI Workflow
+- Added GitHub Actions workflow: `.github/workflows/infra-import-plan.yml`
+  - Steps: bootstrap state (S3/Dynamo), terraform init, import (Route53 + S3), plan
+  - Trigger: Manual (workflow_dispatch) or push to `infra/terraform/**`
+  - Uses repo AWS secrets (same as deploy) and region `us-west-1`
+  - Artifacts: uploads plan files (plan.txt, plan-full.txt)
+
+To run:
+1) In GitHub Actions, run “Infra Import and Plan” (keep apply_imports=true)
+2) Review plan artifacts; we expect zero changes
+
+State naming (for clarity):
+- S3 state bucket: `cee-tf-state-780997964150-usw1`
+- DynamoDB lock table: (omitted for now; backend configured without locking)
+
+Backend status:
+- Created S3 state bucket via AWS CLI
+- Using S3-only backend (no lock table) to avoid extra IAM perms right now
+
+### Import commands (dry‑run output)
+
+```
+terraform import aws_route53_zone.cee /hostedzone/Z01435361IWP4CZW2QPIX
+terraform import aws_route53_zone.hollings /hostedzone/Z0616182IMHS71ROTURQ
+terraform import aws_route53_record.cee_apex_a /hostedzone/Z01435361IWP4CZW2QPIX_cee.photography._A
+terraform import aws_route53_record.cee_www_cname /hostedzone/Z01435361IWP4CZW2QPIX_www.cee.photography._CNAME
+terraform import aws_route53_record.cee_atproto /hostedzone/Z01435361IWP4CZW2QPIX__atproto.cee.photography._TXT
+terraform import aws_route53_record.hol_apex_a /hostedzone/Z0616182IMHS71ROTURQ_hollings.photography._A
+terraform import aws_route53_record.hol_www_cname /hostedzone/Z0616182IMHS71ROTURQ_www.hollings.photography._CNAME
+terraform import aws_s3_bucket.assets japanesebirdcookingspaghetti-assets
+terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
+terraform import aws_iam_role.ec2_role jb-ec2-ssm-role
+terraform import aws_instance.web i-04bd4457fe443c716
+terraform import aws_security_group.web_sg sg-06af0ab526b6b570b
+terraform import aws_ebs_volume.root vol-00fbbd879177c3638
+```
+</file>
+
+<file path=".github/workflows/deploy.yml">
+name: Deploy cee.photography
+
+concurrency:
+  group: cee-deploy
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main, master ]
+
+env:
+  AWS_REGION: us-west-1
+  INSTANCE_TAG_NAME: japanesebird-web
+  ASSETS_BUCKET: japanesebirdcookingspaghetti-assets
+  # New: private bucket for deploy artifacts/configs (no public access)
+  ARTIFACTS_BUCKET: cee-artifacts-prod-780997964150-usw1
+  DOMAIN: cee.photography
+  ALT_DOMAIN: hollings.photography
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Discover EC2 target
+        id: discover
+        run: |
+          set -euo pipefail
+          IID=$(aws ec2 describe-instances \
+            --filters Name=tag:Name,Values=${INSTANCE_TAG_NAME} Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          if [ "$IID" = "None" ] || [ -z "$IID" ]; then
+            echo "No running instance with tag Name=${INSTANCE_TAG_NAME}" >&2
+            exit 1
+          fi
+          echo "instance_id=$IID" >> $GITHUB_OUTPUT
+
+      - name: Check SSM connectivity
+        env:
+          IID: ${{ steps.discover.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          INFO=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=${IID}")
+          COUNT=$(echo "$INFO" | jq -r '.InstanceInformationList | length')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "SSM: instance not registered with SSM or no info returned for $IID" >&2
+            exit 1
+          fi
+          PING=$(echo "$INFO" | jq -r '.InstanceInformationList[0].PingStatus')
+          LAST=$(echo "$INFO" | jq -r '.InstanceInformationList[0].LastPingDateTime')
+          echo "SSM PingStatus=$PING LastPing=$LAST"
+          test "$PING" = "Online"
+
+      - name: Set up Node (for SPA build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+          cache-dependency-path: 'site/package-lock.json'
+
+      - name: Build frontend (Vite)
+        working-directory: site
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          tar -C dist -czf ../site-dist.tar.gz .
+
+      - name: Package backend
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          tar -czf ../backend.tar.gz .
+
+      - name: Create cee units/config (to ship via S3)
+        run: |
+          set -euo pipefail
+          cat > cee-api.service <<'UNIT'
+          [Unit]
+          Description=cee.photography FastAPI service
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=ec2-user
+          Group=nginx
+          EnvironmentFile=-/srv/cee/.env
+          WorkingDirectory=/srv/cee/app
+          ExecStart=/srv/cee/venv/bin/uvicorn main:app --host 127.0.0.1 --port 9002 --proxy-headers --forwarded-allow-ips='*'
+          Restart=always
+          RestartSec=3
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+
+          # Full config (includes ALT_DOMAIN HTTPS). Pre config (without ALT HTTPS) is for cert issuance.
+          cat > cee-nginx-pre.conf <<'CONF_PRE'
+          # Cache storage for proxied S3 images
+          proxy_cache_path /var/cache/nginx/cee levels=1:2 keys_zone=cee_cache:10m max_size=1g inactive=7d use_temp_path=off;
+
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name DOMAIN WWW_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://DOMAIN$request_uri;
+          }
+          # ALT_DOMAIN HTTP (no cross-domain redirect)
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name ALT_DOMAIN WWW_ALT_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://$host$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name WWW_DOMAIN;
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            return 301 https://DOMAIN$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name DOMAIN;
+            root /var/www/cee/site;
+            index index.html;
+            # SPA fallback
+            # Protect management UI with basic auth
+            location ^~ /manage {
+              auth_basic "Management";
+              auth_basic_user_file /etc/nginx/cee.htpasswd;
+              try_files $uri /index.html;
+            }
+            location / { try_files $uri /index.html; }
+            # Backend routes
+            location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
+            location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+            # Feed
+            location = /feed.xml { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_pass http://127.0.0.1:9002/feed.xml; }
+            # Proxied images from S3 via this domain
+            location ^~ /images/ {
+              proxy_set_header Host S3_HOST;
+              # Do not forward Basic Auth header to S3 (causes 403/400)
+              proxy_set_header Authorization "";
+              proxy_http_version 1.1;
+              proxy_set_header Connection "";
+              proxy_read_timeout 300s;
+              # Caching
+              proxy_cache cee_cache;
+              proxy_cache_valid 200 301 302 1h;
+              proxy_cache_valid 404 5m;
+              proxy_hide_header Set-Cookie;
+              proxy_ignore_headers Set-Cookie;
+              add_header X-Cache $upstream_cache_status;
+              add_header Cache-Control "public, max-age=31536000, immutable" always;
+              # Map /images/<key> -> https://S3_HOST/<key>
+              proxy_pass https://S3_HOST/;
+            }
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+          }
+          CONF_PRE
+
+          cat > cee-nginx.conf <<'CONF'
+          # Cache storage for proxied S3 images
+          proxy_cache_path /var/cache/nginx/cee levels=1:2 keys_zone=cee_cache:10m max_size=1g inactive=7d use_temp_path=off;
+
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name DOMAIN WWW_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://DOMAIN$request_uri;
+          }
+          # ALT_DOMAIN HTTP (no cross-domain redirect)
+          server {
+            listen 80;
+            listen [::]:80;
+            server_name ALT_DOMAIN WWW_ALT_DOMAIN;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+            return 301 https://$host$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name WWW_DOMAIN;
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            return 301 https://DOMAIN$request_uri;
+          }
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name DOMAIN;
+            root /var/www/cee/site;
+            index index.html;
+            # SPA fallback
+            # Protect management UI with basic auth
+            location ^~ /manage {
+              auth_basic "Management";
+              auth_basic_user_file /etc/nginx/cee.htpasswd;
+              try_files $uri /index.html;
+            }
+            location / { try_files $uri /index.html; }
+            # RSS feed
+            location = /feed.xml {
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_pass http://127.0.0.1:9002/feed.xml;
+            }
+            # Backend routes
+            location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
+            location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+            # Proxied images from S3 via this domain
+            location ^~ /images/ {
+              proxy_set_header Host S3_HOST;
+              # Do not forward Basic Auth header to S3 (causes 403/400)
+              proxy_set_header Authorization "";
+              proxy_http_version 1.1;
+              proxy_set_header Connection "";
+              proxy_read_timeout 300s;
+              # Caching
+              proxy_cache cee_cache;
+              proxy_cache_valid 200 301 302 1h;
+              proxy_cache_valid 404 5m;
+              proxy_hide_header Set-Cookie;
+              proxy_ignore_headers Set-Cookie;
+              add_header X-Cache $upstream_cache_status;
+              add_header Cache-Control "public, max-age=31536000, immutable" always;
+              # Map /images/<key> -> https://S3_HOST/<key>
+              proxy_pass https://S3_HOST/;
+            }
+            ssl_certificate /etc/nginx/ssl/cee/fullchain.pem;
+            ssl_certificate_key /etc/nginx/ssl/cee/privkey.pem;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+          }
+          # ALT_DOMAIN HTTPS (no /manage)
+          server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+            http2 on;
+            server_name ALT_DOMAIN WWW_ALT_DOMAIN;
+            root /var/www/cee/site;
+            index index.html;
+            location ^~ /manage { return 404; }
+            location / { try_files $uri /index.html; }
+            location = /feed.xml { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_pass http://127.0.0.1:9002/feed.xml; }
+            location /photos { proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; proxy_http_version 1.1; proxy_set_header Connection ""; client_max_body_size 50m; proxy_read_timeout 300s; proxy_pass http://127.0.0.1:9002; }
+            location = /photos.json { proxy_pass http://127.0.0.1:9002/photos; }
+            location ^~ /images/ { proxy_set_header Host S3_HOST; proxy_set_header Authorization ""; proxy_http_version 1.1; proxy_set_header Connection ""; proxy_read_timeout 300s; proxy_cache cee_cache; proxy_cache_valid 200 301 302 1h; proxy_cache_valid 404 5m; proxy_hide_header Set-Cookie; proxy_ignore_headers Set-Cookie; add_header X-Cache $upstream_cache_status; add_header Cache-Control "public, max-age=31536000, immutable" always; proxy_pass https://S3_HOST/; }
+            ssl_certificate /etc/letsencrypt/live/ALT_DOMAIN/fullchain.pem;
+            ssl_certificate_key /etc/letsencrypt/live/ALT_DOMAIN/privkey.pem;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            location ^~ /.well-known/acme-challenge/ { root /var/www/cee/site; default_type "text/plain"; try_files $uri =404; }
+          }
+          CONF
+          # Important: replace WWW_* before bare * to avoid partial substitution
+          sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx.conf
+          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx.conf
+          sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx.conf
+          sed -i "s|WWW_ALT_DOMAIN|www.${ALT_DOMAIN}|g" cee-nginx.conf
+          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx.conf
+          # Pre config substitutions
+          sed -i "s|WWW_DOMAIN|www.${DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|DOMAIN|${DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|S3_HOST|${ASSETS_BUCKET}.s3.${AWS_REGION}.amazonaws.com|g" cee-nginx-pre.conf
+          sed -i "s|WWW_ALT_DOMAIN|www.${ALT_DOMAIN}|g" cee-nginx-pre.conf
+          sed -i "s|ALT_DOMAIN|${ALT_DOMAIN}|g" cee-nginx-pre.conf
+
+      - name: Upload deploy artifacts to S3 (private artifacts bucket)
+        id: s3
+        run: |
+          set -euo pipefail
+          BACKEND_KEY=cee/deploy/backend-${GITHUB_SHA}.tar.gz
+          FRONTEND_KEY=cee/deploy/site-${GITHUB_SHA}.tar.gz
+          CONFIG_UNIT_KEY=cee/deploy/cee-api-${GITHUB_SHA}.service
+          CONFIG_NGX_PRE_KEY=cee/deploy/cee-nginx-pre-${GITHUB_SHA}.conf
+          CONFIG_NGX_KEY=cee/deploy/cee-nginx-${GITHUB_SHA}.conf
+          aws s3 cp backend.tar.gz      s3://${ARTIFACTS_BUCKET}/$BACKEND_KEY
+          aws s3 cp site-dist.tar.gz    s3://${ARTIFACTS_BUCKET}/$FRONTEND_KEY
+          aws s3 cp cee-api.service     s3://${ARTIFACTS_BUCKET}/$CONFIG_UNIT_KEY
+          aws s3 cp cee-nginx-pre.conf  s3://${ARTIFACTS_BUCKET}/$CONFIG_NGX_PRE_KEY
+          aws s3 cp cee-nginx.conf      s3://${ARTIFACTS_BUCKET}/$CONFIG_NGX_KEY
+          echo "backend_key=$BACKEND_KEY" >> $GITHUB_OUTPUT
+          echo "frontend_key=$FRONTEND_KEY" >> $GITHUB_OUTPUT
+          echo "unit_key=$CONFIG_UNIT_KEY" >> $GITHUB_OUTPUT
+          echo "nginx_pre_key=$CONFIG_NGX_PRE_KEY" >> $GITHUB_OUTPUT
+          echo "nginx_key=$CONFIG_NGX_KEY" >> $GITHUB_OUTPUT
+
+      - name: Deploy via SSM
+        env:
+          IID: ${{ steps.discover.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          # Images bucket (public read for image prefixes only)
+          BUCKET_IMG=${ASSETS_BUCKET}
+          # Private artifacts bucket (deploy packages/config)
+          BUCKET_ART=${ARTIFACTS_BUCKET}
+          REGION=${AWS_REGION}
+          export BK=${{ steps.s3.outputs.backend_key }}
+          export SK=${{ steps.s3.outputs.frontend_key }}
+          export UK=${{ steps.s3.outputs.unit_key }}
+          export NKP=${{ steps.s3.outputs.nginx_pre_key }}
+          export NK=${{ steps.s3.outputs.nginx_key }}
+          # Build parameters JSON via Python so $ENV remains literal for remote shell
+          python3 - <<'PY'
+          import json, os
+          BUCKET_IMG = os.environ['ASSETS_BUCKET']
+          BUCKET_ART = os.environ['ARTIFACTS_BUCKET']
+          REGION = os.environ['AWS_REGION']
+          BK = os.environ['BACKEND_KEY'] if 'BACKEND_KEY' in os.environ else os.environ.get('BK', '')
+          SK = os.environ['FRONTEND_KEY'] if 'FRONTEND_KEY' in os.environ else os.environ.get('SK', '')
+          UK = os.environ['CONFIG_UNIT_KEY'] if 'CONFIG_UNIT_KEY' in os.environ else os.environ.get('UK', '')
+          NKP = os.environ.get('NKP', '')
+          NK = os.environ['CONFIG_NGX_KEY'] if 'CONFIG_NGX_KEY' in os.environ else os.environ.get('NK', '')
+          cmds = [
+            "set -euo pipefail",
+            "sudo dnf -y install awscli jq || true",
+            "cd /home/ec2-user",
+            f"aws s3 cp s3://{BUCKET_ART}/{BK} /tmp/backend.tar.gz",
+            f"aws s3 cp s3://{BUCKET_ART}/{SK} /tmp/site-dist.tar.gz",
+            f"aws s3 cp s3://{BUCKET_ART}/{UK} /tmp/cee-api.service",
+            f"aws s3 cp s3://{BUCKET_ART}/{NKP} /tmp/cee-nginx-pre.conf",
+            f"aws s3 cp s3://{BUCKET_ART}/{NK} /tmp/cee-nginx.conf",
+            "sudo mkdir -p /srv/cee/app /srv/cee/data /var/www/cee/site",
+            "if [ ! -d /srv/cee/venv ]; then sudo python3 -m venv /srv/cee/venv; fi",
+            "sudo tar -xzf /tmp/backend.tar.gz -C /srv/cee/app",
+            "sudo /srv/cee/venv/bin/pip install --upgrade pip",
+            "sudo /srv/cee/venv/bin/pip install -r /srv/cee/app/requirements.txt",
+            "sudo install -m 644 /tmp/cee-api.service /etc/systemd/system/cee-api.service",
+            # Pre config (ALT HTTP only) then certbot issuance for ALT_DOMAIN
+            "sudo install -m 644 /tmp/cee-nginx-pre.conf /etc/nginx/conf.d/cee.conf",
+            "sudo install -d -m 755 /var/cache/nginx/cee",
+            # Create/update basic auth file for /manage (user: hollings)
+            "echo 'hollings:$apr1$IREq9XjJ$uvhAU3MXBFJD3h80Pc76c1' | sudo tee /etc/nginx/cee.htpasswd >/dev/null",
+            "sudo chmod 640 /etc/nginx/cee.htpasswd",
+            "sudo chgrp nginx /etc/nginx/cee.htpasswd || sudo chown root:nginx /etc/nginx/cee.htpasswd || true",
+            "sudo install -d -m 775 -o ec2-user -g nginx /srv/cee/data",
+            "# Ensure env defaults exist (force-set idempotently)",
+            "ENV=/srv/cee/.env; sudo touch $ENV; sudo chown ec2-user:nginx $ENV",
+            "sudo sed -i -e '/^DATABASE_URL=/d' -e '/^AWS_DEFAULT_REGION=/d' -e '/^S3_BUCKET=/d' $ENV",
+            "echo DATABASE_URL=sqlite:////srv/cee/data/photos.db | sudo tee -a $ENV >/dev/null",
+            f"echo AWS_DEFAULT_REGION={REGION} | sudo tee -a $ENV >/dev/null",
+            f"echo S3_BUCKET={BUCKET_IMG} | sudo tee -a $ENV >/dev/null",
+            "sudo systemctl daemon-reload",
+            "sudo systemctl enable cee-api.service",
+            "sudo systemctl restart cee-api.service",
+            "sudo tar -xzf /tmp/site-dist.tar.gz -C /var/www/cee/site",
+            "sudo chown -R ec2-user:nginx /var/www/cee/site",
+            "sudo nginx -t",
+            "sudo systemctl reload nginx || sudo systemctl restart nginx",
+            # Issue/renew ALT_DOMAIN certificate using webroot
+            "sudo dnf -y install certbot || true",
+            "sudo certbot certonly --non-interactive --agree-tos -m ops@cee.photography --webroot -w /var/www/cee/site -d ${os.environ.get('ALT_DOMAIN','')} -d www.${os.environ.get('ALT_DOMAIN','')} || true",
+            # Install full config and reload
+            "sudo install -m 644 /tmp/cee-nginx.conf /etc/nginx/conf.d/cee.conf",
+            "sudo nginx -t",
+            "sudo systemctl reload nginx || sudo systemctl restart nginx",
+          ]
+          with open('ssm-params.json','w') as f:
+            json.dump({"commands": cmds}, f)
+          print('Wrote ssm-params.json with', len(cmds), 'commands')
+          PY
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$IID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "cee deploy ${GITHUB_SHA}" \
+            --parameters file://ssm-params.json \
+            --query 'Command.CommandId' --output text)
+          echo "SSM Command: $CMD_ID"
+          aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$IID"
+          STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$IID" --query Status --output text)
+          echo "SSM status: $STATUS"
+          test "$STATUS" = "Success"
+
+      - name: Post-deploy health and logs
+        if: ${{ always() }}
+        env:
+          IID: ${{ steps.discover.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          cat > ssm-check.json <<'JSON'
+          {"commands": [
+            "set -e",
+            "echo '--- systemctl status cee-api.service ---'",
+            "systemctl status cee-api.service --no-pager || true",
+            "echo '--- journalctl (last 120) ---'",
+            "journalctl -u cee-api.service -n 120 --no-pager || true",
+            "echo '--- curl local /photos ---'",
+            "curl -sS -D- http://127.0.0.1:9002/photos || true",
+            "echo '--- env file ---'",
+            "sudo sed -n '1,200p' /srv/cee/.env || true",
+            "echo '--- nginx test ---'",
+            "sudo nginx -t || true",
+            "echo '--- nginx error log tail ---'",
+            "sudo tail -n 120 /var/log/nginx/error.log || true"
+          ]}
+          JSON
+          CHECK_ID=$(aws ssm send-command \
+            --instance-ids "$IID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "cee post-deploy checks ${GITHUB_SHA}" \
+            --parameters file://ssm-check.json \
+            --query 'Command.CommandId' --output text)
+          aws ssm wait command-executed --command-id "$CHECK_ID" --instance-id "$IID" || true
+          echo "--- SSM post-check stdout ---"
+          aws ssm get-command-invocation \
+            --command-id "$CHECK_ID" --instance-id "$IID" \
+            --plugin-name aws:runShellScript \
+            --query 'StandardOutputContent' --output text || true
+          echo "--- SSM post-check stderr ---"
+          aws ssm get-command-invocation \
+            --command-id "$CHECK_ID" --instance-id "$IID" \
+            --plugin-name aws:runShellScript \
+            --query 'StandardErrorContent' --output text || true
+
+      - name: Cleanup S3 artifacts (artifacts bucket)
+        if: ${{ always() && steps.s3.outputs.backend_key }}
+        run: |
+          set -euo pipefail
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.backend_key }} || true
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.frontend_key }} || true
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.unit_key }} || true
+          aws s3 rm s3://${ARTIFACTS_BUCKET}/${{ steps.s3.outputs.nginx_key }} || true
+</file>
+
+</files>
