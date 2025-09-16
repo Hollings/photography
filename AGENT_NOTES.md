@@ -137,4 +137,4 @@ Health check options (choose one):
 Rollout sequence:
 1) Canary hollings only → verify; rollback is a single Route53 flip to instance IP.
 2) Cut over cee → verify /manage and feed; rollback similarly.
-- Images bucket import: enabled after CI policy update; both S3 buckets are now managed in state.
+- Images bucket import: gated behind `manage_assets_bucket` flag; skip until IAM policy allows terraform to read bucket metadata.
