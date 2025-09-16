@@ -59,3 +59,18 @@ S3_BUCKET=japanesebirdcookingspaghetti-assets
 ### Notes
 - Plan to lower DNS TTLs to 60s during cutovers; record current TTLs first.
 - No changes applied in Phase 0 beyond safe reads and documentation.
+
+## PHASE 1 — Terraform Baseline (Scaffold)
+- Status: scaffolded (no applies)
+- Path: `infra/terraform` in this repo
+- Contents:
+  - bootstrap/main.tf — creates remote state S3 bucket + DynamoDB lock table (optional)
+  - backend.hcl — remote state config (fill with names), then `terraform init -backend-config=backend.hcl`
+  - providers.tf, versions.tf — AWS provider + pins
+  - main.tf — stubs for Route53 zones/records and S3 buckets (prevent_destroy + ignore_changes)
+  - import_route53_s3.sh — helper that discovers zone IDs and prints/imports terraform import commands
+
+Next steps:
+- [ ] (Optional) Run bootstrap to create state bucket/table
+- [ ] Init backend; run import script (dry-run first), then with APPLY=1
+- [ ] terraform plan (expect no changes); adjust stubs if any drift shows
