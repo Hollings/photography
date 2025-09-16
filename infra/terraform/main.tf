@@ -135,7 +135,10 @@ resource "aws_instance" "web" {
   instance_type          = "t3.micro"       # placeholder, ignored
   disable_api_termination = false
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 # Security group protecting the instance (import-only stub)
@@ -143,7 +146,10 @@ resource "aws_security_group" "web_sg" {
   name   = "cee-web-sg"
   vpc_id = "vpc-xxxxxxxx" # placeholder
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 # Root EBS volume (import-only stub)
@@ -151,5 +157,8 @@ resource "aws_ebs_volume" "root" {
   availability_zone = "us-west-1a"
   size              = 8
 
-  lifecycle { prevent_destroy = true, ignore_changes = all }
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
