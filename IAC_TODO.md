@@ -20,6 +20,9 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [x] Import IAM instance role `jb-ec2-ssm-role` and policy attachments (S3 images r/w, artifacts read, SSM).
 - [x] Import EC2 instance, Security Group(s), and any EBS volumes.
 - [ ] Write exact resource definitions to match current live configuration (policies, lifecycle, SG rules, tags).
+  - [x] Route53 apex/www records now match live IP/CNAME values.
+  - [ ] Flesh out S3 bucket policies + lifecycle.
+  - [ ] Capture IAM role policy attachments.
 - [x] Run `terraform plan` → expect NO CHANGES; fix drift in code until plan is empty (done via GitHub Action).
 - [ ] Add CI job: plan on PR, apply on main (manual approval optional).
 - [ ] Rollback plan: retain backups; if something is off, do not apply. Revert code or state to previous commit.
