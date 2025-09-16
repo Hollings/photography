@@ -9,6 +9,8 @@ locals {
   artifacts_bucket   = "cee-artifacts-prod-780997964150-usw1"
   ec2_instance_id    = "i-04bd4457fe443c716"
   ec2_role_name      = "jb-ec2-ssm-role"
+  ec2_sg_id          = "sg-06af0ab526b6b570b"
+  ec2_volume_id      = "vol-00fbbd879177c3638"
 }
 
 resource "aws_route53_zone" "cee" {
@@ -108,6 +110,22 @@ resource "aws_instance" "web" {
   ami                    = "ami-xxxxxxxx"   # placeholder, ignored
   instance_type          = "t3.micro"       # placeholder, ignored
   disable_api_termination = false
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Security group protecting the instance (import-only stub)
+resource "aws_security_group" "web_sg" {
+  name   = "cee-web-sg"
+  vpc_id = "vpc-xxxxxxxx" # placeholder
+
+  lifecycle { prevent_destroy = true, ignore_changes = all }
+}
+
+# Root EBS volume (import-only stub)
+resource "aws_ebs_volume" "root" {
+  availability_zone = "us-west-1a"
+  size              = 8
 
   lifecycle { prevent_destroy = true, ignore_changes = all }
 }
