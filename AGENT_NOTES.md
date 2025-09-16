@@ -19,11 +19,11 @@ This file tracks working notes for the IaC migration so context persists across 
 
 ### Snapshot: Route 53
 - cee.photography — ZoneId: /hostedzone/Z01435361IWP4CZW2QPIX
-  - apex A TTL: 60
-  - www CNAME TTL: 300
+  - apex A TTL: 60 → 52.52.3.178
+  - www A TTL: 60 → 52.52.3.178
 - hollings.photography — ZoneId: /hostedzone/Z0616182IMHS71ROTURQ
-  - apex A TTL: 300
-  - www CNAME TTL: 300
+  - apex A TTL: 300 → 52.52.3.178
+  - www CNAME TTL: 300 → hollings.photography
 
 ### Snapshot: Server Config
 - server_name lines:
