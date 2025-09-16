@@ -74,7 +74,7 @@ resource "aws_route53_record" "hol_www_cname" {
   name    = "www.${local.hollings_zone_name}"
   type    = "CNAME"
   ttl     = 300
-  records = [local.hollings_zone_name]
+  records = ["${local.hollings_zone_name}."]
 
   lifecycle {
     prevent_destroy = true
