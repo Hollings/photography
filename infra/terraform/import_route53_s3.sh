@@ -20,11 +20,12 @@ do_or_echo() {
 import_if_missing() {
   local addr="$1"; shift
   local id="$1"; shift || true
-  if terraform state list | grep -qx "$addr"; then
+  if terraform state show "$addr" >/dev/null 2>&1; then
     echo "skip: $addr already in state"
-  else
-    do_or_echo "terraform import $addr $id"
+    return
   fi
+
+  do_or_echo "terraform import $addr $id"
 }
 
 say "Discovering Route53 zone IDs..."
