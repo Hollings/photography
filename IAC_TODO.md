@@ -13,16 +13,20 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [x] Create Terraform backend S3 state bucket: `cee-tf-state-780997964150-usw1`
 - [x] Configure S3 backend without DynamoDB locking (optional to add later)
 - [x] Scaffold repo: providers (AWS), remote state, and modules (`route53`, `s3`, `iam`, `ec2`, `ssm`).
-- [ ] Import Route53 hosted zones (cee + hollings) and their A/CNAME/TXT records.
-- [ ] Import S3 buckets: images (public read on image prefixes only), artifacts (private, SSE-S3, lifecycle).
+- [x] Import Route53 hosted zones (cee + hollings) and their A/CNAME/TXT records.
+- [x] Import S3 buckets: images (public read on image prefixes only), artifacts (private, SSE-S3, lifecycle).
   - [x] Images bucket (japanesebirdcookingspaghetti-assets): imported
   - [x] Artifacts bucket (cee-artifacts-prod-780997964150-usw1): imported
-- [ ] Import IAM instance role `jb-ec2-ssm-role` and policy attachments (S3 images r/w, artifacts read, SSM).
-- [ ] Import EC2 instance, Security Group(s), and any EBS volumes.
+- [x] Import IAM instance role `jb-ec2-ssm-role` and policy attachments (S3 images r/w, artifacts read, SSM).
+- [x] Import EC2 instance, Security Group(s), and any EBS volumes.
 - [ ] Write exact resource definitions to match current live configuration (policies, lifecycle, SG rules, tags).
-- [ ] Run `terraform plan` → expect NO CHANGES; fix drift in code until plan is empty.
+- [x] Run `terraform plan` → expect NO CHANGES; fix drift in code until plan is empty.
 - [ ] Add CI job: plan on PR, apply on main (manual approval optional).
 - [ ] Rollback plan: retain backups; if something is off, do not apply. Revert code or state to previous commit.
+
+### Phase 1 — Hygiene
+- [ ] Unify Terraform tree at `infra/terraform`; archive/remove `source/photography/infra/terraform` to avoid drift.
+- [ ] Add drift-only CI: on push to `infra/terraform/**`, run `terraform plan` (no imports) and fail on drift; always upload plan artifacts.
 
 ### Optional Hardening in Phase 1
 - [ ] Allocate and attach an Elastic IP to the EC2 instance.
@@ -30,13 +34,20 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [ ] Rollback: point A back to old public IP (TTL=60), detach/release EIP later.
 
 ## Phase 2A — Managed TLS + ALB (Canary on hollings)
-- [ ] Provision ACM certs (DNS-validated) for both domains (apex + www) in Terraform.
+- [ ] Provision ACM cert (DNS-validated) for `hollings.photography` + `www` (Route53 validation).
 - [ ] Create ALB + Security Group + Target Group; register existing EC2 backend.
-- [ ] ALB listeners: host-based routing for cee.* and hollings.*; preserve Host header for feed.
-- [ ] Optional: ALB rule to 404 `/manage` for `Host=hollings.*` (keep /manage on cee only).
-- [ ] Switch hollings apex to ALB (ALIAS). Validate HTTPS, /photos, /feed.xml, /images on hollings.
-- [ ] Rollback: point hollings apex back to EIP; leave ALB in place for next attempt.
-- [ ] When stable, switch cee apex to ALB. Rollback path: apex back to EIP.
+- [ ] ALB listener 443 (hollings ACM) → TG; health check defined (see notes for options).
+- [ ] Route53 A/ALIAS for hollings apex + www → ALB.
+- [ ] ALB rule: block `/manage` for Host=hollings.* (404).
+- [ ] Manual canary cutover on hollings; verify TLS, /photos, /feed.xml, /images.
+- [ ] Rollback: flip A/ALIAS back to instance IP (TTL=60), ALB remains for retry.
+
+## Phase 2B — ALB + ACM (cee) after canary is stable
+- [ ] ACM cert for `cee.photography` + `www`.
+- [ ] ALB 443 listener (cee ACM) → TG.
+- [ ] Route53 A/ALIAS for cee apex + www → ALB.
+- [ ] Confirm `/manage` allowed only on cee.
+- [ ] Rollback: flip records back to instance IP.
 
 ## Phase 2B — CloudFront + S3 for SPA (Optional, start with hollings)
 - [ ] Create private S3 SPA buckets: `spa-cee.photography`, `spa-hollings.photography` (OAC/OAI restricted).

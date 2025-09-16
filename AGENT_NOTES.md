@@ -61,7 +61,7 @@ S3_BUCKET=japanesebirdcookingspaghetti-assets
 - No changes applied in Phase 0 beyond safe reads and documentation.
 
 ## PHASE 1 — Terraform Baseline (Scaffold)
-- Status: scaffolded; backend S3 bucket created; CI to create lock table & import
+- Status: baseline captured — S3 backend configured; imports succeeded; plan is zero‑diff
 - Path: `infra/terraform` in this repo
 - Contents:
   - bootstrap/main.tf — creates remote state S3 bucket + DynamoDB lock table (optional)
@@ -91,8 +91,8 @@ State naming (for clarity):
 - DynamoDB lock table: (omitted for now; backend configured without locking)
 
 Backend status:
-- Created S3 state bucket via AWS CLI
-- Using S3-only backend (no lock table) to avoid extra IAM perms right now
+- S3-only backend (no DynamoDB lock) to minimize required IAM
+- Remote state bucket: `cee-tf-state-780997964150-usw1`
 
 ### Import commands (dry‑run output)
 
@@ -110,4 +110,31 @@ terraform import aws_instance.web i-04bd4457fe443c716
 terraform import aws_security_group.web_sg sg-06af0ab526b6b570b
 terraform import aws_ebs_volume.root vol-00fbbd879177c3638
 ```
+
+Notes:
+- “www.cee.photography” is an A record (not CNAME) and is modeled/imported accordingly.
+- Import scripts are idempotent (skip addresses already in state).
+
+## PHASE 1 — Hygiene (Planned)
+- Unify Terraform to `infra/terraform`; retire the duplicate `source/photography/infra/terraform` tree to avoid drift.
+- Add drift-only CI on pushes to `infra/terraform/**` that runs plan and fails on drift; always upload plan artifacts.
+- (Optional) Add DynamoDB state locking once IAM allows CreateTable.
+
+## PHASE 2 — ALB + ACM (Plan)
+Objective: serve both domains behind an ALB with ACM TLS and keep /manage only on cee.
+
+Adds:
+- ACM certs (DNS-validated) per domain.
+- One ALB with host-based listeners (443): hollings and cee certs.
+- Target Group attaching existing EC2.
+- Route53 A/ALIAS for apex + www per domain → ALB.
+- ALB fixed-response rule (404) for `/manage` on Host=hollings.*
+
+Health check options (choose one):
+- HTTPS 443 → `/feed.xml` with host header override to each domain (valid certs exist).
+- HTTP 80 → `/health` if we add a non-redirect exception in Nginx.
+
+Rollout sequence:
+1) Canary hollings only → verify; rollback is a single Route53 flip to instance IP.
+2) Cut over cee → verify /manage and feed; rollback similarly.
 - Images bucket import: enabled after CI policy update; both S3 buckets are now managed in state.
