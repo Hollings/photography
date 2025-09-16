@@ -52,8 +52,9 @@ say "Importing hollings.photography records..."
 import_if_missing aws_route53_record.hol_apex_a ${HOL_ZONE}_hollings.photography._A
 import_if_missing aws_route53_record.hol_www_cname ${HOL_ZONE}_www.hollings.photography._CNAME
 
-say "Importing S3 bucket (artifacts)..."
+say "Importing S3 buckets..."
 import_if_missing aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
+import_if_missing aws_s3_bucket.assets japanesebirdcookingspaghetti-assets
 
 say "Done. If this was a dry run, re-run with APPLY=1 to execute."
 

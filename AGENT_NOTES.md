@@ -110,4 +110,4 @@ terraform import aws_instance.web i-04bd4457fe443c716
 terraform import aws_security_group.web_sg sg-06af0ab526b6b570b
 terraform import aws_ebs_volume.root vol-00fbbd879177c3638
 ```
-- Note: images bucket import is deferred; CI IAM lacks S3 control‑plane read (HeadBucket/GetBucket*). Will import with elevated creds or add policy later.
+- Images bucket import: enabled after CI policy update; both S3 buckets are now managed in state.
