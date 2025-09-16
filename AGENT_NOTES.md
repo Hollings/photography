@@ -104,10 +104,10 @@ terraform import aws_route53_record.cee_www_cname /hostedzone/Z01435361IWP4CZW2Q
 terraform import aws_route53_record.cee_atproto /hostedzone/Z01435361IWP4CZW2QPIX__atproto.cee.photography._TXT
 terraform import aws_route53_record.hol_apex_a /hostedzone/Z0616182IMHS71ROTURQ_hollings.photography._A
 terraform import aws_route53_record.hol_www_cname /hostedzone/Z0616182IMHS71ROTURQ_www.hollings.photography._CNAME
-terraform import aws_s3_bucket.assets japanesebirdcookingspaghetti-assets
 terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
 terraform import aws_iam_role.ec2_role jb-ec2-ssm-role
 terraform import aws_instance.web i-04bd4457fe443c716
 terraform import aws_security_group.web_sg sg-06af0ab526b6b570b
 terraform import aws_ebs_volume.root vol-00fbbd879177c3638
 ```
+- Note: images bucket import is deferred; CI IAM lacks S3 control‑plane read (HeadBucket/GetBucket*). Will import with elevated creds or add policy later.

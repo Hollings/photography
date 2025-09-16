@@ -99,16 +99,7 @@ resource "aws_route53_record" "cee_atproto" {
   }
 }
 
-# S3 buckets (images + artifacts)
-resource "aws_s3_bucket" "assets" {
-  bucket = local.assets_bucket
-
-  lifecycle {
-    prevent_destroy = true
-    ignore_changes  = all
-  }
-}
-
+# S3 artifacts bucket (images bucket excluded for now due to limited CI perms)
 resource "aws_s3_bucket" "artifacts" {
   bucket = local.artifacts_bucket
 
