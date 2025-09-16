@@ -56,12 +56,19 @@ import_if_missing aws_route53_record.hol_www_cname ${HOL_ZONE}_www.hollings.phot
 say "Importing S3 buckets..."
 import_if_missing aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
 
-# Images bucket has tighter ACLs; skip import if it isn't accessible with provided creds.
-if aws s3api head-bucket --bucket japanesebirdcookingspaghetti-assets >/dev/null 2>&1; then
-  import_if_missing aws_s3_bucket.assets japanesebirdcookingspaghetti-assets
-else
-  echo "warn: bucket japanesebirdcookingspaghetti-assets not accessible; skipping import"
-fi
+manage_assets=${TF_VAR_manage_assets_bucket:-0}
+case "$manage_assets" in
+  1|true|TRUE)
+    if aws s3api head-bucket --bucket japanesebirdcookingspaghetti-assets >/dev/null 2>&1; then
+      import_if_missing aws_s3_bucket.assets[0] japanesebirdcookingspaghetti-assets
+    else
+      echo "warn: bucket japanesebirdcookingspaghetti-assets not accessible; skipping import"
+    fi
+    ;;
+  *)
+    echo "info: manage_assets_bucket disabled; skipping assets bucket import"
+    ;;
+esac
 
 say "Done. If this was a dry run, re-run with APPLY=1 to execute."
 

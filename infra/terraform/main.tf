@@ -110,6 +110,7 @@ resource "aws_s3_bucket" "artifacts" {
 }
 
 resource "aws_s3_bucket" "assets" {
+  count  = var.manage_assets_bucket ? 1 : 0
   bucket = local.assets_bucket
 
   lifecycle {
