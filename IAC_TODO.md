@@ -3,10 +3,10 @@
 Scope: codify the current cee.photography stack and safely migrate to managed TLS/routing with clear rollback at each step. No changes should be applied without a successful dry-run and a written revert path.
 
 ## Phase 0 — Pre‑Flight (Inventory, Safety)
-- [ ] Confirm AWS account/region (780997964150, us-west-1) and active profile for automation.
-- [ ] Snapshot current server config: `/etc/nginx/conf.d/cee.conf`, `/srv/cee/.env`, `systemctl status cee-api.service`.
-- [ ] Note critical IDs: EC2 `i-04bd4457fe443c716`, role `jb-ec2-ssm-role`, buckets: images `japanesebirdcookingspaghetti-assets`, artifacts `cee-artifacts-prod-780997964150-usw1`.
-- [ ] Route53 zones: `cee.photography`, `hollings.photography` (record sets for apex + www).
+- [x] Confirm AWS account/region (780997964150, us-west-1) and active profile for automation.
+- [x] Snapshot current server config: `/etc/nginx/conf.d/cee.conf` (server_name lines), `/srv/cee/.env` (key vars), `systemctl status cee-api.service` (excerpt).
+- [x] Note critical IDs: EC2 `i-04bd4457fe443c716`, role `jb-ec2-ssm-role`, buckets: images `japanesebirdcookingspaghetti-assets`, artifacts `cee-artifacts-prod-780997964150-usw1`.
+- [x] Route53 zones: `cee.photography`, `hollings.photography` (record sets for apex + www) and TTLs.
 - [ ] Set low DNS TTLs (60s) on apex/www A/CNAME during migration windows.
 
 ## Phase 1 — Terraform Baseline (Import Live)
