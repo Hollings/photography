@@ -10,8 +10,9 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [ ] Set low DNS TTLs (60s) on apex/www A/CNAME during migration windows.
 
 ## Phase 1 — Terraform Baseline (Import Live)
-- [ ] Create Terraform backend: new S3 state bucket + DynamoDB lock table (e.g., `cee-tf-state-usw1`, `cee-tf-locks`).
-- [ ] Scaffold repo: providers (AWS), remote state, and modules (`route53`, `s3`, `iam`, `ec2`, `ssm`).
+- [x] Create Terraform backend S3 state bucket: `cee-tf-state-780997964150-usw1`
+- [ ] Create DynamoDB lock table: `cee-tf-locks` (CI bootstrap will create)
+- [x] Scaffold repo: providers (AWS), remote state, and modules (`route53`, `s3`, `iam`, `ec2`, `ssm`).
 - [ ] Import Route53 hosted zones (cee + hollings) and their A/CNAME/TXT records.
 - [ ] Import S3 buckets: images (public read on image prefixes only), artifacts (private, SSE-S3, lifecycle).
 - [ ] Import IAM instance role `jb-ec2-ssm-role` and policy attachments (S3 images r/w, artifacts read, SSM).

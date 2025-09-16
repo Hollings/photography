@@ -61,7 +61,7 @@ S3_BUCKET=japanesebirdcookingspaghetti-assets
 - No changes applied in Phase 0 beyond safe reads and documentation.
 
 ## PHASE 1 — Terraform Baseline (Scaffold)
-- Status: scaffolded (no applies)
+- Status: scaffolded; backend S3 bucket created; CI to create lock table & import
 - Path: `infra/terraform` in this repo
 - Contents:
   - bootstrap/main.tf — creates remote state S3 bucket + DynamoDB lock table (optional)
@@ -89,6 +89,10 @@ To run:
 State naming (for clarity):
 - S3 state bucket: `cee-tf-state-780997964150-usw1`
 - DynamoDB lock table: `cee-tf-locks`
+
+Backend status:
+- Created S3 state bucket via AWS CLI
+- Lock table creation requires CI (local creds lack dynamodb:CreateTable)
 
 ### Import commands (dry‑run output)
 
