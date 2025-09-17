@@ -11,6 +11,15 @@ locals {
   ec2_role_name      = "jb-ec2-ssm-role"
   ec2_sg_id          = "sg-06af0ab526b6b570b"
   ec2_volume_id      = "vol-00fbbd879177c3638"
+  hollings_domains = [
+    "hollings.photography",
+    "www.hollings.photography",
+  ]
+  alb_name                = "jb-cee-alb"
+  alb_security_group_name = "jb-alb-sg"
+  alb_target_group_name   = "jb-cee-web-tg"
+  alb_subnet_ids          = ["subnet-fbd6209d", "subnet-d2070589"]
+  vpc_id                  = "vpc-7d1c1b1a"
 }
 
 resource "aws_route53_zone" "cee" {
@@ -61,8 +70,12 @@ resource "aws_route53_record" "hol_apex_a" {
   zone_id = aws_route53_zone.hollings.zone_id
   name    = local.hollings_zone_name
   type    = "A"
-  ttl     = 300
-  records = ["52.52.3.178"]
+
+  alias {
+    name                   = aws_lb.cee.dns_name
+    zone_id                = aws_lb.cee.zone_id
+    evaluate_target_health = true
+  }
 
   lifecycle {
     prevent_destroy = true
@@ -72,9 +85,13 @@ resource "aws_route53_record" "hol_apex_a" {
 resource "aws_route53_record" "hol_www_cname" {
   zone_id = aws_route53_zone.hollings.zone_id
   name    = "www.${local.hollings_zone_name}"
-  type    = "CNAME"
-  ttl     = 300
-  records = ["${local.hollings_zone_name}."]
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.cee.dns_name
+    zone_id                = aws_lb.cee.zone_id
+    evaluate_target_health = true
+  }
 
   lifecycle {
     prevent_destroy = true
@@ -195,6 +212,187 @@ resource "aws_s3_bucket_policy" "assets" {
   })
 }
 
+# ACM certificate for hollings.photography + www
+resource "aws_acm_certificate" "hollings" {
+  domain_name               = local.hollings_zone_name
+  subject_alternative_names = [for domain in local.hollings_domains : domain if domain != local.hollings_zone_name]
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Project = "japanesebird"
+    Domain  = local.hollings_zone_name
+  }
+}
+
+resource "aws_route53_record" "hollings_cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.hollings.domain_validation_options : dvo.domain_name => {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  }
+
+  zone_id = aws_route53_zone.hollings.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.value]
+}
+
+resource "aws_acm_certificate_validation" "hollings" {
+  certificate_arn         = aws_acm_certificate.hollings.arn
+  validation_record_fqdns = [for record in aws_route53_record.hollings_cert_validation : record.fqdn]
+}
+
+# ALB + target group + listeners
+resource "aws_security_group" "alb" {
+  name        = local.alb_security_group_name
+  description = "ALB security group for japanesebird"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = local.alb_security_group_name
+    Project = "japanesebird"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_lb" "cee" {
+  name               = local.alb_name
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = local.alb_subnet_ids
+
+  tags = {
+    Name    = local.alb_name
+    Project = "japanesebird"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_lb_target_group" "web" {
+  name     = local.alb_target_group_name
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = local.vpc_id
+
+  health_check {
+    enabled             = true
+    interval            = 30
+    path                = "/feed.xml"
+    protocol            = "HTTP"
+    timeout             = 5
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    matcher             = "200"
+  }
+
+  tags = {
+    Name    = local.alb_target_group_name
+    Project = "japanesebird"
+  }
+}
+
+resource "aws_lb_target_group_attachment" "web_instance" {
+  target_group_arn = aws_lb_target_group.web.arn
+  target_id        = aws_instance.web.id
+  port             = 80
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.cee.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      host        = "#{host}"
+      path        = "/#{path}"
+      port        = "443"
+      protocol    = "HTTPS"
+      query       = "#{query}"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.cee.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate_validation.hollings.certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "hollings_block_manage" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 10
+
+  action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not found"
+      status_code  = "404"
+    }
+  }
+
+  condition {
+    host_header {
+      values = local.hollings_domains
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/manage", "/manage*", "/manage/*"]
+    }
+  }
+}
+
 # IAM role used by the EC2 instance (import-only stub)
 resource "aws_iam_role" "ec2_role" {
   name                 = local.ec2_role_name
@@ -300,7 +498,7 @@ resource "aws_iam_role_policy" "ec2_assets_read" {
 resource "aws_instance" "web" {
   ami                         = "ami-0b4608f7f34cec195"
   instance_type               = "t3.micro"
-  subnet_id                   = "subnet-fbd6209d"
+  subnet_id                   = local.alb_subnet_ids[0]
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   iam_instance_profile        = "jb-ec2-instance-profile"
   key_name                    = "jb-ec2"
@@ -344,7 +542,7 @@ resource "aws_instance" "web" {
 resource "aws_security_group" "web_sg" {
   name        = "jb-web-sg"
   description = "Web SG for japanesebird"
-  vpc_id      = "vpc-7d1c1b1a"
+  vpc_id      = local.vpc_id
 
   ingress {
     description = "HTTP"

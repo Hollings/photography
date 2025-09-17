@@ -139,12 +139,23 @@ Notes:
 ## PHASE 2 — ALB + ACM (Plan)
 Objective: serve both domains behind an ALB with ACM TLS and keep /manage only on cee.
 
-Adds:
-- ACM certs (DNS-validated) per domain.
-- One ALB with host-based listeners (443): hollings and cee certs.
-- Target Group attaching existing EC2.
-- Route53 A/ALIAS for apex + www per domain → ALB.
-- ALB fixed-response rule (404) for `/manage` on Host=hollings.*
+Adds (Terraform defined for hollings canary):
+- ACM cert (DNS-validated) for `hollings.photography` + `www` with Route53 validation records.
+- Application Load Balancer (`jb-cee-alb`) across public subnets `subnet-fbd6209d` + `subnet-d2070589` secured by `jb-alb-sg` (80/443 ingress).
+- Target group (`jb-cee-web-tg`) forwarding 443 traffic to the existing EC2 (HTTP 80) with `/feed.xml` health checks.
+- HTTPS listener (443) with automatic HTTP→HTTPS redirect and a fixed-response rule returning 404 for `/manage*` on hollings hosts.
+- Route53 apex + www records for hollings now modelled as ALB aliases (cutover occurs on apply).
+
+Terraform plan summary (canary stack creation):
+- 11 resources to add (ACM cert + validation, ALB, SG, target group, listeners, listener rule, validation records, etc.).
+- 2 Route53 records updated (hollings apex/www → ALB aliases).
+- No resources to destroy.
+
+Cutover steps (once ready):
+1. `terraform apply` in `infra/terraform` (ensure plan matches expected adds/updates).
+2. Wait for ACM validation (Route53 records created automatically) until cert status = ISSUED, then ALB + listener converge.
+3. Verify ALB: `curl https://hollings.photography` (expect 301/200), confirm `/manage` returns 404, check `/feed.xml`.
+4. Monitor health checks and logs; rollback by reverting Route53 apex/www records to the instance IP (previous state in git) and destroying ALB resources if needed.
 
 Health check options (choose one):
 - HTTPS 443 → `/feed.xml` with host header override to each domain (valid certs exist).
