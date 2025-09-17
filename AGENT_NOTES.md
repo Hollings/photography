@@ -148,11 +148,12 @@ Adds:
 - HTTPS listener (TLS13 policy) with HTTP→HTTPS redirect; cee cert configured as primary, hollings cert attached via `aws_lb_listener_certificate` for SNI.
 - Route53 apex + www alias records for both hollings and cee now point to the ALB.
 - Listener rule returns 404 for `/manage*` when Host=hollings.*, allowing `/manage` only on cee.
+- Instance HTTP (port 80) server now proxies app traffic when `X-Forwarded-Proto=https` to avoid ALB redirect loops (direct HTTP still redirects to TLS).
 
 Validation notes (2025-09-17):
 - `curl -I https://hollings.photography` → 301 to canonical cee domain (app behavior).
 - `curl -I -H 'Host: hollings.photography' https://hollings.photography/manage` → 404 (fixed ALB response).
-- `curl -I https://cee.photography` → 301 to trailing slash (app behavior); `/manage` reachable (no ALB block).
+- `curl -I https://cee.photography` → 200 OK; `/manage` reachable (no ALB block).
 - `openssl s_client -servername cee.photography -connect cee.photography:443` shows CN=cee.photography; using hollings hostname presents CN=hollings.photography.
 - `terraform plan` now zero-diff with ALB + certificates managed in state.
 
