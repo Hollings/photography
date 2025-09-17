@@ -139,23 +139,26 @@ Notes:
 ## PHASE 2 — ALB + ACM (Plan)
 Objective: serve both domains behind an ALB with ACM TLS and keep /manage only on cee.
 
-Adds (Terraform defined for hollings canary):
-- ACM cert (DNS-validated) for `hollings.photography` + `www` with Route53 validation records.
-- Application Load Balancer (`jb-cee-alb`) across public subnets `subnet-fbd6209d` + `subnet-d2070589` secured by `jb-alb-sg` (80/443 ingress).
-- Target group (`jb-cee-web-tg`) forwarding 443 traffic to the existing EC2 (HTTP 80) with `/feed.xml` health checks.
-- HTTPS listener (443) with automatic HTTP→HTTPS redirect and a fixed-response rule returning 404 for `/manage*` on hollings hosts.
-- Route53 apex + www records for hollings now modelled as ALB aliases (cutover occurs on apply).
+Status: hollings canary ALB/TLS live.
 
-Terraform plan summary (canary stack creation):
-- 11 resources to add (ACM cert + validation, ALB, SG, target group, listeners, listener rule, validation records, etc.).
-- 2 Route53 records updated (hollings apex/www → ALB aliases).
-- No resources to destroy.
+Adds:
+- ACM certificate (DNS validated) for `hollings.photography` + `www` issued in us-west-1; validation records managed in Route53.
+- Application Load Balancer `jb-cee-alb` across subnets `subnet-fbd6209d` + `subnet-d2070589`, security group `jb-alb-sg` allowing HTTP/HTTPS.
+- Target group `jb-cee-web-tg` forwarding to existing EC2 on port 80 with `/feed.xml` HTTP health check.
+- HTTPS listener (TLS13 policy) with HTTP→HTTPS redirect and fixed 404 response for `/manage*` on hollings hosts.
+- Route53 apex + www alias records now point to the ALB; deploys use Terraform apply.
 
-Cutover steps (once ready):
-1. `terraform apply` in `infra/terraform` (ensure plan matches expected adds/updates).
-2. Wait for ACM validation (Route53 records created automatically) until cert status = ISSUED, then ALB + listener converge.
-3. Verify ALB: `curl https://hollings.photography` (expect 301/200), confirm `/manage` returns 404, check `/feed.xml`.
-4. Monitor health checks and logs; rollback by reverting Route53 apex/www records to the instance IP (previous state in git) and destroying ALB resources if needed.
+Validation notes (2025-09-17):
+- `curl -I https://hollings.photography` → 301 to canonical cee domain (expected app behavior).
+- `curl -I -H 'Host: hollings.photography' https://hollings.photography/manage` → 404 from ALB rule.
+- `curl -I -H 'Host: hollings.photography' https://hollings.photography/feed.xml` → 301 to cee (app-level redirect remains); content reachable via cee canonical domain.
+- `terraform plan` now zero-diff with ALB resources in state.
+
+Rollback quick reference:
+1. Set Route53 `hollings.photography` A + `www` A records back to instance IP `52.52.3.178` using `terraform state rm` + manual update, or check out previous commit + apply.
+2. Destroy ALB stack: `terraform destroy -target aws_lb_listener_rule.hollings_block_manage -target aws_lb_listener.https -target aws_lb_listener.http -target aws_lb.cee -target aws_lb_target_group_attachment.web_instance -target aws_lb_target_group.web -target aws_security_group.alb -target aws_acm_certificate_validation.hollings -target aws_acm_certificate.hollings`.
+3. Remove validation CNAMEs if ACM cert is deleted.
+4. Confirm health via `curl` and monitor CloudWatch/ALB metrics.
 
 Health check options (choose one):
 - HTTPS 443 → `/feed.xml` with host header override to each domain (valid certs exist).

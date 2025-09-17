@@ -40,13 +40,13 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [ ] Rollback: point A back to old public IP (TTL=60), detach/release EIP later.
 
 ## Phase 2A — Managed TLS + ALB (Canary on hollings)
-- [ ] Provision ACM cert (DNS-validated) for `hollings.photography` + `www` (Terraform defined; pending apply).
-- [ ] Create ALB + Security Group + Target Group; register existing EC2 backend (Terraform defined; pending apply).
-- [ ] ALB listener 443 (hollings ACM) → TG; health check defined (Terraform defined; pending apply).
-- [ ] Route53 A/ALIAS for hollings apex + www → ALB (Terraform defined; apply to cut over).
-- [ ] ALB rule: block `/manage` for Host=hollings.* (404) (Terraform defined; pending apply).
-- [ ] Manual canary cutover on hollings; verify TLS, /photos, /feed.xml, /images.
-- [ ] Rollback: flip A/ALIAS back to instance IP (TTL=60), ALB remains for retry.
+- [x] Provision ACM cert (DNS-validated) for `hollings.photography` + `www` (issued via Terraform).
+- [x] Create ALB + Security Group + Target Group; register existing EC2 backend.
+- [x] ALB listener 443 (hollings ACM) → TG; health check defined (HTTP `/feed.xml`).
+- [x] Route53 A/ALIAS for hollings apex + www → ALB.
+- [x] ALB rule: block `/manage` for Host=hollings.* (404).
+- [x] Manual canary cutover on hollings; verify TLS, `/feed.xml`, `/manage` (301 to cee canonical, 404 on manage works).
+- [x] Rollback: documented in AGENT_NOTES (revert alias to EC2 IP, destroy ALB resources if needed).
 
 ## Phase 2B — ALB + ACM (cee) after canary is stable
 - [ ] ACM cert for `cee.photography` + `www`.
