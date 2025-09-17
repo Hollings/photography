@@ -1,0 +1,15 @@
+{
+    "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K",
+    "Rules": [
+        {
+            "Expiration": {
+                "Days": 30
+            },
+            "ID": "expire-patch-30d",
+            "Filter": {
+                "Prefix": "cee/patch/"
+            },
+            "Status": "Enabled"
+        }
+    ]
+}

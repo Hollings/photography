@@ -59,6 +59,7 @@ S3_BUCKET=japanesebirdcookingspaghetti-assets
 ### Notes
 - Plan to lower DNS TTLs to 60s during cutovers; record current TTLs first.
 - No changes applied in Phase 0 beyond safe reads and documentation.
+- Local Terraform runs via `AWS_PROFILE=codex` + Terraform 1.6.6 (provider pinned to ~>5.67).
 
 ## PHASE 1 — Terraform Baseline (Scaffold)
 - Status: baseline captured — S3 backend configured; imports succeeded; plan is zero‑diff
@@ -105,6 +106,8 @@ terraform import aws_route53_record.cee_atproto /hostedzone/Z01435361IWP4CZW2QPI
 terraform import aws_route53_record.hol_apex_a /hostedzone/Z0616182IMHS71ROTURQ_hollings.photography._A
 terraform import aws_route53_record.hol_www_cname /hostedzone/Z0616182IMHS71ROTURQ_www.hollings.photography._CNAME
 terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
+terraform import aws_s3_bucket_server_side_encryption_configuration.artifacts cee-artifacts-prod-780997964150-usw1
+terraform import aws_s3_bucket_lifecycle_configuration.artifacts cee-artifacts-prod-780997964150-usw1
 terraform import aws_iam_role.ec2_role jb-ec2-ssm-role
 terraform import aws_instance.web i-04bd4457fe443c716
 terraform import aws_security_group.web_sg sg-06af0ab526b6b570b

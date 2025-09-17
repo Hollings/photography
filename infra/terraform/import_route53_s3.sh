@@ -55,6 +55,8 @@ import_if_missing aws_route53_record.hol_www_cname ${HOL_ZONE}_www.hollings.phot
 
 say "Importing S3 buckets..."
 import_if_missing aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
+import_if_missing aws_s3_bucket_server_side_encryption_configuration.artifacts cee-artifacts-prod-780997964150-usw1
+import_if_missing aws_s3_bucket_lifecycle_configuration.artifacts cee-artifacts-prod-780997964150-usw1
 
 manage_assets=${TF_VAR_manage_assets_bucket:-0}
 case "$manage_assets" in

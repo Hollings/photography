@@ -101,7 +101,33 @@ resource "aws_s3_bucket" "artifacts" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    id     = "expire-patch-30d"
+    status = "Enabled"
+
+    filter {
+      prefix = "cee/patch/"
+    }
+
+    expiration {
+      days = 30
+    }
   }
 }
 
@@ -111,7 +137,6 @@ resource "aws_s3_bucket" "assets" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
   }
 }
 
@@ -128,8 +153,8 @@ resource "aws_iam_role" "ec2_role" {
 
 # EC2 instance (import-only stub)
 resource "aws_instance" "web" {
-  ami                    = "ami-xxxxxxxx"   # placeholder, ignored
-  instance_type          = "t3.micro"       # placeholder, ignored
+  ami                     = "ami-xxxxxxxx" # placeholder, ignored
+  instance_type           = "t3.micro"     # placeholder, ignored
   disable_api_termination = false
 
   lifecycle {
