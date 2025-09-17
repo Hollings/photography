@@ -69,8 +69,9 @@ S3_BUCKET=japanesebirdcookingspaghetti-assets
   - bootstrap/main.tf — creates remote state S3 bucket + DynamoDB lock table (optional)
   - backend.hcl — remote state config (fill with names), then `terraform init -backend-config=backend.hcl`
   - providers.tf, versions.tf — AWS provider + pins
-  - main.tf — codified Route53 zones/records, S3 buckets, IAM role, and security group
+  - main.tf — codified Route53 zones/records, S3 buckets, IAM role, security group, and EC2 instance
   - import_route53_s3.sh — helper that discovers zone IDs and prints/imports terraform import commands
+  - `.github/workflows/infra-plan-drift.yml` — drift-only plan on pushes to Terraform tree
 
 Next steps:
 - [ ] (Optional) Run bootstrap to create state bucket/table

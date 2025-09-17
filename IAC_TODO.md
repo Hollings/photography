@@ -32,7 +32,7 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 
 ### Phase 1 — Hygiene
 - [ ] Unify Terraform tree at `infra/terraform`; archive/remove `source/photography/infra/terraform` to avoid drift.
-- [ ] Add drift-only CI: on push to `infra/terraform/**`, run `terraform plan` (no imports) and fail on drift; always upload plan artifacts.
+- [x] Add drift-only CI: on push to `infra/terraform/**`, run `terraform plan` (no imports) and fail on drift; always upload plan artifacts.
 
 ### Optional Hardening in Phase 1
 - [ ] Allocate and attach an Elastic IP to the EC2 instance.
