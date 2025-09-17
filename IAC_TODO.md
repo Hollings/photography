@@ -22,6 +22,7 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [ ] Write exact resource definitions to match current live configuration (policies, lifecycle, SG rules, tags).
   - [x] Route53 apex/www records now match live IP/CNAME values.
   - [x] Artifacts bucket SSE + lifecycle captured (no bucket policy set).
+  - [x] Security group ingress/egress codified.
   - [ ] Flesh out images bucket policy/public access posture.
   - [x] Capture IAM role policy attachments + inline policies.
 - [x] Run `terraform plan` → expect NO CHANGES; fix drift in code until plan is empty (done via GitHub Action).
