@@ -25,6 +25,7 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
   - [x] Security group ingress/egress codified.
   - [x] Images bucket policy/public access posture codified.
   - [x] Capture IAM role policy attachments + inline policies.
+  - [x] EC2 instance (AMI, subnet, metadata options, root volume) modelled; root EBS volume tracked.
 - [x] Run `terraform plan` → expect NO CHANGES; fix drift in code until plan is empty (done via GitHub Action).
 - [ ] Add CI job: plan on PR, apply on main (manual approval optional).
 - [ ] Rollback plan: retain backups; if something is off, do not apply. Revert code or state to previous commit.

@@ -63,6 +63,7 @@ S3_BUCKET=japanesebirdcookingspaghetti-assets
 
 ## PHASE 1 — Terraform Baseline (Scaffold)
 - Status: baseline captured — S3 backend configured; imports succeeded; plan is zero‑diff
+- Route53, S3 (artifacts + assets), IAM role, security group, and EC2 instance now have concrete definitions in `main.tf`.
 - Path: `infra/terraform` in this repo
 - Contents:
   - bootstrap/main.tf — creates remote state S3 bucket + DynamoDB lock table (optional)

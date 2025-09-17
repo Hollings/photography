@@ -296,15 +296,47 @@ resource "aws_iam_role_policy" "ec2_assets_read" {
   })
 }
 
-# EC2 instance (import-only stub)
+# EC2 instance serving the app
 resource "aws_instance" "web" {
-  ami                     = "ami-xxxxxxxx" # placeholder, ignored
-  instance_type           = "t3.micro"     # placeholder, ignored
-  disable_api_termination = false
+  ami                         = "ami-0b4608f7f34cec195"
+  instance_type               = "t3.micro"
+  subnet_id                   = "subnet-fbd6209d"
+  vpc_security_group_ids      = [aws_security_group.web_sg.id]
+  iam_instance_profile        = "jb-ec2-instance-profile"
+  key_name                    = "jb-ec2"
+  associate_public_ip_address = true
+  disable_api_termination     = false
+  monitoring                  = false
+  source_dest_check           = true
+
+  credit_specification {
+    cpu_credits = "unlimited"
+  }
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+    http_protocol_ipv6          = "disabled"
+  }
+
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 8
+    iops                  = 3000
+    throughput            = 125
+    delete_on_termination = true
+    encrypted             = false
+  }
+
+  tags = {
+    Name    = "japanesebird-web"
+    Project = "japanesebird"
+  }
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
+    ignore_changes  = [user_data, user_data_base64, user_data_replace_on_change]
   }
 }
 
@@ -417,9 +449,14 @@ resource "aws_security_group" "web_sg" {
 resource "aws_ebs_volume" "root" {
   availability_zone = "us-west-1a"
   size              = 8
+  type              = "gp3"
+  iops              = 3000
+  throughput        = 125
+  encrypted         = false
+  snapshot_id       = "snap-0700cf8e643a212d8"
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
+    ignore_changes  = [tags, tags_all]
   }
 }
