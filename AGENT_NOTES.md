@@ -124,10 +124,17 @@ Notes:
 - “www.cee.photography” is an A record (not CNAME) and is modeled/imported accordingly.
 - Import scripts are idempotent (skip addresses already in state).
 
-## PHASE 1 — Hygiene (Planned)
-- Unify Terraform to `infra/terraform`; retire the duplicate `source/photography/infra/terraform` tree to avoid drift.
-- Add drift-only CI on pushes to `infra/terraform/**` that runs plan and fails on drift; always upload plan artifacts.
-- (Optional) Add DynamoDB state locking once IAM allows CreateTable.
+## PHASE 1 — Hygiene (Complete)
+- Terraform lives solely under `infra/terraform/`; no duplicate tree remains.
+- Drift-only GitHub Action (`infra-plan-drift`) runs `terraform plan` on pushes to the Terraform tree and fails on drift.
+- DynamoDB state locking still optional; S3 backend suffices for now.
+
+## Rollback Playbook
+- Always review plan artifacts before any apply; snapshot remote state via `terraform state pull > state-$(date +%Y%m%d%H%M).json`.
+- If an apply misbehaves, immediately `terraform state push` the saved snapshot or revert code to the previous commit and rerun `terraform plan` to confirm zero diff.
+- For DNS flips, keep TTL at 60s, revert ALIAS/CNAME to prior target, and monitor with `dig` + `curl`.
+- For server changes, keep `/etc/nginx` backups (`*.bak`) and reload only after `nginx -t`; use `systemctl status` and `journalctl -u` for verification post-change.
+- Never delete the EC2 path until any new ALB/ECS deployment is stable; retaining the instance provides instant rollback by repointing DNS.
 
 ## PHASE 2 — ALB + ACM (Plan)
 Objective: serve both domains behind an ALB with ACM TLS and keep /manage only on cee.

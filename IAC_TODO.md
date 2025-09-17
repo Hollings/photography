@@ -31,7 +31,7 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [ ] Rollback plan: retain backups; if something is off, do not apply. Revert code or state to previous commit.
 
 ### Phase 1 — Hygiene
-- [ ] Unify Terraform tree at `infra/terraform`; archive/remove `source/photography/infra/terraform` to avoid drift.
+- [x] Unify Terraform tree at `infra/terraform`; legacy duplicate removed so only canonical path remains.
 - [x] Add drift-only CI: on push to `infra/terraform/**`, run `terraform plan` (no imports) and fail on drift; always upload plan artifacts.
 
 ### Optional Hardening in Phase 1
@@ -75,11 +75,12 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [ ] Add alarms: 5xx spikes, instance memory pressure, disk space, cert expiry (if any).
 - [ ] Document `/manage` access (cee only) and ensure it is blocked on hollings (ALB or app layer).
 
-## Validation & Rollback Playbook
-- [ ] Pre/post deploy checks: `systemctl status`, `journalctl`, Nginx test, local curls to backend.
-- [ ] DNS flips have explicit rollback: ALIAS/CNAME back to previous target; TTL=60 during changes.
-- [ ] Nginx config changes keep `.bak` and reload only after `nginx -t` passes; revert with single mv + reload.
-- [ ] Keep EC2 path intact until ALB/ECS paths are proven; never decommission the old path without a tested fallback.
+-## Validation & Rollback Playbook
+- [x] Pre/post deploy checks: `systemctl status`, `journalctl`, Nginx test, local curls to backend.
+- [x] DNS flips have explicit rollback: ALIAS/CNAME back to previous target; TTL=60 during changes.
+- [x] Nginx config changes keep `.bak` and reload only after `nginx -t` passes; revert with single mv + reload.
+- [x] Keep EC2 path intact until ALB/ECS paths are proven; never decommission the old path without a tested fallback.
+- [x] Terraform rollback playbook documented (state snapshot + revert to previous commit before apply).
 
 Notes:
 - Start with Phase 1 only if schedule is tight; it stops drift without changing traffic.
