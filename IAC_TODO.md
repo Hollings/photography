@@ -23,7 +23,7 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
   - [x] Route53 apex/www records now match live IP/CNAME values.
   - [x] Artifacts bucket SSE + lifecycle captured (no bucket policy set).
   - [ ] Flesh out images bucket policy/public access posture.
-  - [ ] Capture IAM role policy attachments.
+  - [x] Capture IAM role policy attachments + inline policies.
 - [x] Run `terraform plan` → expect NO CHANGES; fix drift in code until plan is empty (done via GitHub Action).
 - [ ] Add CI job: plan on PR, apply on main (manual approval optional).
 - [ ] Rollback plan: retain backups; if something is off, do not apply. Revert code or state to previous commit.

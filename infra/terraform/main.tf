@@ -142,13 +142,103 @@ resource "aws_s3_bucket" "assets" {
 
 # IAM role used by the EC2 instance (import-only stub)
 resource "aws_iam_role" "ec2_role" {
-  name               = local.ec2_role_name
-  assume_role_policy = jsonencode({}) # placeholder; real policy managed outside until codified
+  name                 = local.ec2_role_name
+  path                 = "/"
+  max_session_duration = 3600
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = all
   }
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_ssm_managed" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy" "ec2_artifacts_read" {
+  name = "CeeArtifactsRead"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ArtifactsReadAccess"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::cee-artifacts-prod-780997964150-usw1/cee/deploy/*",
+          "arn:aws:s3:::cee-artifacts-prod-780997964150-usw1/cee/patch/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "ec2_assets_rw" {
+  name = "S3DeployAndPhoto"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::japanesebirdcookingspaghetti-assets/deploy/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::japanesebirdcookingspaghetti-assets/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "ec2_assets_read" {
+  name = "S3DeployRead"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::japanesebirdcookingspaghetti-assets/deploy/*"
+        ]
+      }
+    ]
+  })
 }
 
 # EC2 instance (import-only stub)

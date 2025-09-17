@@ -108,6 +108,10 @@ terraform import aws_route53_record.hol_www_cname /hostedzone/Z0616182IMHS71ROTU
 terraform import aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
 terraform import aws_s3_bucket_server_side_encryption_configuration.artifacts cee-artifacts-prod-780997964150-usw1
 terraform import aws_s3_bucket_lifecycle_configuration.artifacts cee-artifacts-prod-780997964150-usw1
+terraform import aws_iam_role_policy_attachment.ec2_ssm_managed jb-ec2-ssm-role/arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+terraform import aws_iam_role_policy.ec2_artifacts_read jb-ec2-ssm-role:CeeArtifactsRead
+terraform import aws_iam_role_policy.ec2_assets_rw jb-ec2-ssm-role:S3DeployAndPhoto
+terraform import aws_iam_role_policy.ec2_assets_read jb-ec2-ssm-role:S3DeployRead
 terraform import aws_iam_role.ec2_role jb-ec2-ssm-role
 terraform import aws_instance.web i-04bd4457fe443c716
 terraform import aws_security_group.web_sg sg-06af0ab526b6b570b
