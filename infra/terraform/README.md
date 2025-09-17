@@ -5,7 +5,7 @@ current cee.photography infrastructure without changing traffic. The pattern is:
 
 1) Bootstrap remote state (S3 + DynamoDB) — optional if you already have these
 2) Init Terraform with backend
-3) Import existing resources (Route53 zones/records, S3 buckets)
+3) Import existing resources (Route53 zones/records, S3 buckets, IAM, EC2)
 4) Run plan (expect no changes). Only then consider expanding coverage
 
 No terraform apply is expected until imports are clean and plans are zero‑diff.
@@ -38,11 +38,13 @@ No terraform apply is expected until imports are clean and plans are zero‑diff
 
    terraform plan
 
-If plan shows drift, stop and adjust the stubs (or add ignore_changes) before any apply.
+If plan shows drift, stop and adjust the stubs before any apply.
 
 ## Notes
-- The resource stubs have `prevent_destroy` and `ignore_changes = all` to safely assume
-  management. Remove `ignore_changes` gradually as you codify exact attributes (policies,
-  lifecycle rules, etc.) and validate plans.
-- EC2/IAM are included as stubs to complete the baseline; they are set to ignore all changes so
-  plans should be no‑diff after import. We’ll codify exact attributes later.
+- Many resources started life as import-only stubs with `prevent_destroy`. As you encode
+  real configuration (Route53 targets, S3 lifecycle/SSE, IAM role policies, SG ingress/egress)
+  drop the blanket `ignore_changes` and rely on Terraform for drift detection.
+- `import_route53_s3.sh` skips addresses already in state and now covers S3 encryption/lifecycle
+  plus IAM role policy attachments and inline policies.
+- The assets bucket stays gated behind `TF_VAR_manage_assets_bucket` until we have IAM access
+  and a codified public-access posture.
