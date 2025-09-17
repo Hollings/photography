@@ -49,11 +49,11 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [x] Rollback: documented in AGENT_NOTES (revert alias to EC2 IP, destroy ALB resources if needed).
 
 ## Phase 2B — ALB + ACM (cee) after canary is stable
-- [ ] ACM cert for `cee.photography` + `www`.
-- [ ] ALB 443 listener (cee ACM) → TG.
-- [ ] Route53 A/ALIAS for cee apex + www → ALB.
-- [ ] Confirm `/manage` allowed only on cee.
-- [ ] Rollback: flip records back to instance IP.
+- [x] ACM cert for `cee.photography` + `www` (issued, DNS-validated).
+- [x] ALB 443 listener (cee ACM) → TG; hollings cert attached via listener certificate.
+- [x] Route53 A/ALIAS for cee apex + www → ALB (dual ALIAS records active).
+- [x] Confirm `/manage` allowed only on cee (ALB rule still blocks hollings).
+- [x] Rollback: documented (revert alias to instance IP, destroy ALB resources if required).
 
 ## Phase 2B — CloudFront + S3 for SPA (Optional, start with hollings)
 - [ ] Create private S3 SPA buckets: `spa-cee.photography`, `spa-hollings.photography` (OAC/OAI restricted).

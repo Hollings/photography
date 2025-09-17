@@ -139,26 +139,28 @@ Notes:
 ## PHASE 2 — ALB + ACM (Plan)
 Objective: serve both domains behind an ALB with ACM TLS and keep /manage only on cee.
 
-Status: hollings canary ALB/TLS live.
+Status: hollings canary ALB/TLS live; cee.photography now fronted by the same ALB (primary cert).
 
 Adds:
-- ACM certificate (DNS validated) for `hollings.photography` + `www` issued in us-west-1; validation records managed in Route53.
+- ACM certificates (DNS validated) for both `hollings.photography` + `www` and `cee.photography` + `www`; validation records managed via Terraform in Route53.
 - Application Load Balancer `jb-cee-alb` across subnets `subnet-fbd6209d` + `subnet-d2070589`, security group `jb-alb-sg` allowing HTTP/HTTPS.
-- Target group `jb-cee-web-tg` forwarding to existing EC2 on port 80 with `/feed.xml` HTTP health check.
-- HTTPS listener (TLS13 policy) with HTTP→HTTPS redirect and fixed 404 response for `/manage*` on hollings hosts.
-- Route53 apex + www alias records now point to the ALB; deploys use Terraform apply.
+- Target group `jb-cee-web-tg` forwarding to existing EC2 on port 80 with `/feed.xml` HTTP health checks.
+- HTTPS listener (TLS13 policy) with HTTP→HTTPS redirect; cee cert configured as primary, hollings cert attached via `aws_lb_listener_certificate` for SNI.
+- Route53 apex + www alias records for both hollings and cee now point to the ALB.
+- Listener rule returns 404 for `/manage*` when Host=hollings.*, allowing `/manage` only on cee.
 
 Validation notes (2025-09-17):
-- `curl -I https://hollings.photography` → 301 to canonical cee domain (expected app behavior).
-- `curl -I -H 'Host: hollings.photography' https://hollings.photography/manage` → 404 from ALB rule.
-- `curl -I -H 'Host: hollings.photography' https://hollings.photography/feed.xml` → 301 to cee (app-level redirect remains); content reachable via cee canonical domain.
-- `terraform plan` now zero-diff with ALB resources in state.
+- `curl -I https://hollings.photography` → 301 to canonical cee domain (app behavior).
+- `curl -I -H 'Host: hollings.photography' https://hollings.photography/manage` → 404 (fixed ALB response).
+- `curl -I https://cee.photography` → 301 to trailing slash (app behavior); `/manage` reachable (no ALB block).
+- `openssl s_client -servername cee.photography -connect cee.photography:443` shows CN=cee.photography; using hollings hostname presents CN=hollings.photography.
+- `terraform plan` now zero-diff with ALB + certificates managed in state.
 
-Rollback quick reference:
-1. Set Route53 `hollings.photography` A + `www` A records back to instance IP `52.52.3.178` using `terraform state rm` + manual update, or check out previous commit + apply.
-2. Destroy ALB stack: `terraform destroy -target aws_lb_listener_rule.hollings_block_manage -target aws_lb_listener.https -target aws_lb_listener.http -target aws_lb.cee -target aws_lb_target_group_attachment.web_instance -target aws_lb_target_group.web -target aws_security_group.alb -target aws_acm_certificate_validation.hollings -target aws_acm_certificate.hollings`.
-3. Remove validation CNAMEs if ACM cert is deleted.
-4. Confirm health via `curl` and monitor CloudWatch/ALB metrics.
+Rollback quick reference (both domains):
+1. Set Route53 apex + www A records back to instance IP `52.52.3.178` by reverting the Terraform change (checkout previous commit + apply) or editing via console in emergency.
+2. Destroy ALB stack if needed: `terraform destroy -target aws_lb_listener_rule.hollings_block_manage -target aws_lb_listener_certificate.hollings -target aws_lb_listener.https -target aws_lb_listener.http -target aws_lb.cee -target aws_lb_target_group_attachment.web_instance -target aws_lb_target_group.web -target aws_security_group.alb -target aws_acm_certificate_validation.cee -target aws_acm_certificate_validation.hollings -target aws_acm_certificate.cee -target aws_acm_certificate.hollings`.
+3. Remove validation CNAMEs if certificates are deleted manually.
+4. Confirm health via `curl` on both domains and monitor ALB / EC2 logs.
 
 Health check options (choose one):
 - HTTPS 443 → `/feed.xml` with host header override to each domain (valid certs exist).

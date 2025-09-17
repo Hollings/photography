@@ -11,6 +11,10 @@ locals {
   ec2_role_name      = "jb-ec2-ssm-role"
   ec2_sg_id          = "sg-06af0ab526b6b570b"
   ec2_volume_id      = "vol-00fbbd879177c3638"
+  cee_domains = [
+    "cee.photography",
+    "www.cee.photography",
+  ]
   hollings_domains = [
     "hollings.photography",
     "www.hollings.photography",
@@ -45,8 +49,11 @@ resource "aws_route53_record" "cee_apex_a" {
   zone_id = aws_route53_zone.cee.zone_id
   name    = local.cee_zone_name
   type    = "A"
-  ttl     = 60
-  records = ["52.52.3.178"]
+  alias {
+    name                   = aws_lb.cee.dns_name
+    zone_id                = aws_lb.cee.zone_id
+    evaluate_target_health = true
+  }
 
   lifecycle {
     prevent_destroy = true
@@ -57,8 +64,11 @@ resource "aws_route53_record" "cee_www_a" {
   zone_id = aws_route53_zone.cee.zone_id
   name    = "www.${local.cee_zone_name}"
   type    = "A"
-  ttl     = 60
-  records = ["52.52.3.178"]
+  alias {
+    name                   = aws_lb.cee.dns_name
+    zone_id                = aws_lb.cee.zone_id
+    evaluate_target_health = true
+  }
 
   lifecycle {
     prevent_destroy = true
@@ -249,6 +259,43 @@ resource "aws_acm_certificate_validation" "hollings" {
   validation_record_fqdns = [for record in aws_route53_record.hollings_cert_validation : record.fqdn]
 }
 
+# ACM certificate for cee.photography + www
+resource "aws_acm_certificate" "cee" {
+  domain_name               = local.cee_zone_name
+  subject_alternative_names = [for domain in local.cee_domains : domain if domain != local.cee_zone_name]
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Project = "japanesebird"
+    Domain  = local.cee_zone_name
+  }
+}
+
+resource "aws_route53_record" "cee_cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.cee.domain_validation_options : dvo.domain_name => {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  }
+
+  zone_id = aws_route53_zone.cee.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.value]
+}
+
+resource "aws_acm_certificate_validation" "cee" {
+  certificate_arn         = aws_acm_certificate.cee.arn
+  validation_record_fqdns = [for record in aws_route53_record.cee_cert_validation : record.fqdn]
+}
+
 # ALB + target group + listeners
 resource "aws_security_group" "alb" {
   name        = local.alb_security_group_name
@@ -358,12 +405,17 @@ resource "aws_lb_listener" "https" {
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = aws_acm_certificate_validation.hollings.certificate_arn
+  certificate_arn   = aws_acm_certificate_validation.cee.certificate_arn
 
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.web.arn
   }
+}
+
+resource "aws_lb_listener_certificate" "hollings" {
+  listener_arn    = aws_lb_listener.https.arn
+  certificate_arn = aws_acm_certificate_validation.hollings.certificate_arn
 }
 
 resource "aws_lb_listener_rule" "hollings_block_manage" {
