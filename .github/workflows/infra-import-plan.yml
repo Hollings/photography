@@ -8,6 +8,11 @@ on:
         required: true
         default: true
         type: boolean
+      collect_bucket_facts:
+        description: Gather S3 bucket diagnostics (policies, lifecycle, encryption)
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [ main ]
     paths:
@@ -68,6 +73,37 @@ jobs:
         env:
           APPLY: "1"
         run: ./import_route53_s3.sh
+
+      - name: Collect S3 bucket facts
+        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.collect_bucket_facts == true || github.event.inputs.collect_bucket_facts == 'true')
+        run: |
+          set +e
+          mkdir -p diagnostics
+          echo "Collecting cee artifacts bucket details"
+          aws s3api get-bucket-location --bucket cee-artifacts-prod-780997964150-usw1 > diagnostics/artifacts-location.json
+          aws s3api get-bucket-versioning --bucket cee-artifacts-prod-780997964150-usw1 > diagnostics/artifacts-versioning.json
+          aws s3api get-bucket-encryption --bucket cee-artifacts-prod-780997964150-usw1 > diagnostics/artifacts-encryption.json
+          aws s3api get-bucket-lifecycle-configuration --bucket cee-artifacts-prod-780997964150-usw1 > diagnostics/artifacts-lifecycle.json
+          aws s3api get-bucket-policy --bucket cee-artifacts-prod-780997964150-usw1 > diagnostics/artifacts-policy.json
+          echo "Collecting assets bucket details"
+          if aws s3api head-bucket --bucket japanesebirdcookingspaghetti-assets >/dev/null 2>&1; then
+            aws s3api get-bucket-location --bucket japanesebirdcookingspaghetti-assets > diagnostics/assets-location.json
+            aws s3api get-bucket-versioning --bucket japanesebirdcookingspaghetti-assets > diagnostics/assets-versioning.json
+            aws s3api get-bucket-encryption --bucket japanesebirdcookingspaghetti-assets > diagnostics/assets-encryption.json
+            aws s3api get-bucket-lifecycle-configuration --bucket japanesebirdcookingspaghetti-assets > diagnostics/assets-lifecycle.json
+            aws s3api get-bucket-policy --bucket japanesebirdcookingspaghetti-assets > diagnostics/assets-policy.json
+          else
+            echo "assets bucket not accessible with current credentials" > diagnostics/assets-unavailable.txt
+          fi
+          exit 0
+
+      - name: Upload bucket diagnostics
+        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.collect_bucket_facts == true || github.event.inputs.collect_bucket_facts == 'true')
+        uses: actions/upload-artifact@v4
+        with:
+          name: s3-bucket-diagnostics
+          path: infra/terraform/diagnostics/
+          if-no-files-found: warn
 
       - name: Terraform plan (detailed exit code)
         id: plan
