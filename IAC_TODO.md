@@ -15,7 +15,7 @@ Scope: codify the current cee.photography stack and safely migrate to managed TL
 - [x] Scaffold repo: providers (AWS), remote state, and modules (`route53`, `s3`, `iam`, `ec2`, `ssm`).
 - [x] Import Route53 hosted zones (cee + hollings) and their A/CNAME/TXT records.
 - [ ] Import S3 buckets: images (public read on image prefixes only), artifacts (private, SSE-S3, lifecycle).
-  - [ ] Images bucket (japanesebirdcookingspaghetti-assets): gated behind `manage_assets_bucket`; enable once perms confirmed.
+  - [ ] Images bucket (japanesebirdcookingspaghetti-assets): explicit bucket policy deny blocks `s3:Get*`; need temporary allow to import.
   - [x] Artifacts bucket (cee-artifacts-prod-780997964150-usw1): imported (SSE + lifecycle codified)
 - [x] Import IAM instance role `jb-ec2-ssm-role` and policy attachments (S3 images r/w, artifacts read, SSM).
 - [x] Import EC2 instance, Security Group(s), and any EBS volumes.
