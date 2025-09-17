@@ -132,12 +132,67 @@ resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
 }
 
 resource "aws_s3_bucket" "assets" {
-  count  = var.manage_assets_bucket ? 1 : 0
   bucket = local.assets_bucket
 
   lifecycle {
     prevent_destroy = true
   }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "assets" {
+  bucket = aws_s3_bucket.assets.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "assets" {
+  bucket = aws_s3_bucket.assets.id
+
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "assets" {
+  bucket = aws_s3_bucket.assets.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "DenyListToPublic"
+        Effect = "Deny"
+        NotPrincipal = {
+          AWS = "arn:aws:iam::780997964150:user/codex-macbook"
+        }
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation",
+          "s3:GetBucketVersioning",
+          "s3:GetBucketAcl",
+          "s3:GetBucketPolicy"
+        ]
+        Resource = "arn:aws:s3:::${local.assets_bucket}"
+      },
+      {
+        Sid       = "AllowPublicReadImagesOnly"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource = [
+          "arn:aws:s3:::${local.assets_bucket}/full/*",
+          "arn:aws:s3:::${local.assets_bucket}/medium/*",
+          "arn:aws:s3:::${local.assets_bucket}/small/*",
+          "arn:aws:s3:::${local.assets_bucket}/thumbnail/*"
+        ]
+      }
+    ]
+  })
 }
 
 # IAM role used by the EC2 instance (import-only stub)

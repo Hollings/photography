@@ -144,4 +144,4 @@ Health check options (choose one):
 Rollout sequence:
 1) Canary hollings only → verify; rollback is a single Route53 flip to instance IP.
 2) Cut over cee → verify /manage and feed; rollback similarly.
-- Images bucket import: still gated — bucket policy denies `s3:GetBucket*`; need temporary allow or manual dump before codifying.
+- Images bucket now codified (SSE, public-access block, policy limiting list while keeping image prefixes world-readable).

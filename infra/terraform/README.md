@@ -46,5 +46,5 @@ If plan shows drift, stop and adjust the stubs before any apply.
   drop the blanket `ignore_changes` and rely on Terraform for drift detection.
 - `import_route53_s3.sh` skips addresses already in state and now covers S3 encryption/lifecycle
   plus IAM role policy attachments and inline policies.
-- The assets bucket stays gated behind `TF_VAR_manage_assets_bucket` until we have IAM access
-  and a codified public-access posture.
+- The assets bucket is now managed as well (SSE, public access block, bucket policy limiting
+  listing to internal principals while keeping image prefixes world-readable).

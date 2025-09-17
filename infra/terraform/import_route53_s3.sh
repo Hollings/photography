@@ -57,24 +57,14 @@ say "Importing S3 buckets..."
 import_if_missing aws_s3_bucket.artifacts cee-artifacts-prod-780997964150-usw1
 import_if_missing aws_s3_bucket_server_side_encryption_configuration.artifacts cee-artifacts-prod-780997964150-usw1
 import_if_missing aws_s3_bucket_lifecycle_configuration.artifacts cee-artifacts-prod-780997964150-usw1
+import_if_missing aws_s3_bucket.assets japanesebirdcookingspaghetti-assets
+import_if_missing aws_s3_bucket_server_side_encryption_configuration.assets japanesebirdcookingspaghetti-assets
+import_if_missing aws_s3_bucket_public_access_block.assets japanesebirdcookingspaghetti-assets
+import_if_missing aws_s3_bucket_policy.assets japanesebirdcookingspaghetti-assets
 import_if_missing aws_iam_role_policy_attachment.ec2_ssm_managed jb-ec2-ssm-role/arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 import_if_missing aws_iam_role_policy.ec2_artifacts_read jb-ec2-ssm-role:CeeArtifactsRead
 import_if_missing aws_iam_role_policy.ec2_assets_rw jb-ec2-ssm-role:S3DeployAndPhoto
 import_if_missing aws_iam_role_policy.ec2_assets_read jb-ec2-ssm-role:S3DeployRead
-
-manage_assets=${TF_VAR_manage_assets_bucket:-0}
-case "$manage_assets" in
-  1|true|TRUE)
-    if aws s3api head-bucket --bucket japanesebirdcookingspaghetti-assets >/dev/null 2>&1; then
-      import_if_missing aws_s3_bucket.assets[0] japanesebirdcookingspaghetti-assets
-    else
-      echo "warn: bucket japanesebirdcookingspaghetti-assets not accessible; skipping import"
-    fi
-    ;;
-  *)
-    echo "info: manage_assets_bucket disabled; skipping assets bucket import"
-    ;;
-esac
 
 say "Done. If this was a dry run, re-run with APPLY=1 to execute."
 
